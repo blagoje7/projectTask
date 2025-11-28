@@ -1,0 +1,10 @@
+flask
+flask-sqlalchemy
+flask-cors
+mysql-connector-python
+werkzeug
+flask-jwt-extended
+flask-socketio==5.3.5
+python-socketio==5.10.0
+simple-websocket
+jira
