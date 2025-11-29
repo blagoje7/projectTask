@@ -41,7 +41,7 @@ A comprehensive project management application with role-based access control, t
    ```bash
    python run.py
    ```
-   The server will start on `http://localhost:5000`.
+   The server will start on `http://localhost:5001`. (fixing macOS problems, already using 5000 port)
    The database tables will be created automatically, and a super admin user (`admin`/`admin`) will be created.
 
 ### Frontend (Vue.js)
