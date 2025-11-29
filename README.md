@@ -223,6 +223,7 @@ A comprehensive project management application with role-based access control, t
 - **Vite** - Build tool
 
 ## Default Credentials
+-**Email**:`admin@example.com`
 - **Username**: `admin`
 - **Password**: `admin`
 
