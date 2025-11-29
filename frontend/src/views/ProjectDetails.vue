@@ -229,7 +229,7 @@ const isManager = computed(() => role.value === 'manager' || role.value === 'adm
 const fetchProject = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5000/projects/${projectId}`, {
+    const response = await axios.get(`http://localhost:5001/projects/${projectId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     project.value = response.data;
@@ -245,7 +245,7 @@ const fetchProject = async () => {
 const createEpic = async () => {
   const token = localStorage.getItem('token');
   try {
-    await axios.post(`http://localhost:5000/projects/${projectId}/epics`, newEpic.value, {
+    await axios.post(`http://localhost:5001/projects/${projectId}/epics`, newEpic.value, {
       headers: { Authorization: `Bearer ${token}` }
     });
     showCreateEpic.value = false;
@@ -261,7 +261,7 @@ const deleteEpic = async (epicId) => {
   if (!confirm('Delete this epic?')) return;
   const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5000/epics/${epicId}`, {
+    await axios.delete(`http://localhost:5001/epics/${epicId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     fetchProject();
@@ -275,7 +275,7 @@ const deleteTask = async (taskId) => {
   if (!confirm('Delete this task?')) return;
   const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5000/tasks/${taskId}`, {
+    await axios.delete(`http://localhost:5001/tasks/${taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     fetchProject();
@@ -292,7 +292,7 @@ const viewTask = (task) => {
 const updateTaskStatus = async () => {
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${selectedTask.value.taskId}/status`, {
+    await axios.put(`http://localhost:5001/tasks/${selectedTask.value.taskId}/status`, {
       status: selectedTask.value.status
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -312,7 +312,7 @@ const formatStatus = (status) => {
 const fetchAllTeams = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/teams', {
+    const response = await axios.get('http://localhost:5001/teams', {
       headers: { Authorization: `Bearer ${token}` }
     });
     allTeams.value = response.data;
@@ -337,7 +337,7 @@ const toggleTeam = (teamId) => {
 const saveTeams = async () => {
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/projects/${projectId}`, {
+    await axios.put(`http://localhost:5001/projects/${projectId}`, {
       name: project.value.name,
       description: project.value.description,
       teamIds: selectedTeamIds.value
@@ -384,7 +384,7 @@ onMounted(() => {
 }
 
 .description {
-  color: #666;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -414,7 +414,7 @@ onMounted(() => {
 }
 
 .project-meta {
-  background: white;
+  background: var(--card-bg);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -468,14 +468,14 @@ onMounted(() => {
   padding: 12px 24px;
   cursor: pointer;
   font-size: 16px;
-  color: #666;
+  color: var(--text-secondary);
   border-bottom: 3px solid transparent;
   margin-bottom: -2px;
 }
 
 .tabs button.active {
-  color: #000;
-  border-bottom-color: #000;
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -498,7 +498,7 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .tasks-list, .epics-list {
@@ -508,7 +508,7 @@ onMounted(() => {
 }
 
 .task-item, .epic-item {
-  background: white;
+  background: var(--card-bg);
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -549,7 +549,7 @@ onMounted(() => {
 }
 
 .task-description {
-  color: #666;
+  color: var(--text-secondary);
   margin: 10px 0;
 }
 
@@ -632,7 +632,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 8px;
   max-width: 600px;
@@ -651,7 +651,7 @@ onMounted(() => {
   width: 100%;
   padding: 10px;
   margin: 10px 0;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   box-sizing: border-box;
 }
@@ -684,7 +684,7 @@ onMounted(() => {
 .task-detail-meta, .assignees-section, .status-update {
   margin: 20px 0;
   padding: 15px;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   border-radius: 6px;
 }
 
@@ -712,7 +712,7 @@ onMounted(() => {
 }
 
 .team-checkbox:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .team-checkbox input {

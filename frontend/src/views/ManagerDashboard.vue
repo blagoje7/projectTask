@@ -9,10 +9,16 @@
             v-for="project in projects"
             :key="project.projectId"
             :class="['project-item', { active: selectedProject?.projectId === project.projectId }]"
-            @click="selectProject(project)"
           >
-            <span class="project-indicator"></span>
-            {{ project.name }}
+            <div class="project-main" @click="selectProject(project)">
+              <span class="project-indicator"></span>
+              {{ project.name }}
+            </div>
+            <button @click.stop="toggleProjectMenu(project.projectId)" class="project-menu-btn">⋯</button>
+            <div v-if="activeProjectMenu === project.projectId" class="project-context-menu">
+              <div @click="viewMyTasks(project)" class="menu-item">📄 My Tasks</div>
+              <div @click="viewProjectDetails(project)" class="menu-item">📊 Project Details</div>
+            </div>
           </div>
         </div>
       </div>
@@ -36,7 +42,10 @@
         <div class="member-list">
           <div v-for="member in teamMembers" :key="member.userId" class="member-item">
             <div class="member-avatar">{{ member.firstName[0] }}{{ member.lastName[0] }}</div>
-            <span>{{ member.firstName }} {{ member.lastName }}</span>
+            <div class="member-info">
+              <span class="member-name">{{ member.firstName }} {{ member.lastName }}</span>
+              <span class="member-role">{{ member.role?.name || 'N/A' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -273,11 +282,14 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 let socket = null;
 
 // State
 const projects = ref([]);
+const activeProjectMenu = ref(null);
 const selectedProject = ref(null);
 const currentTeams = ref([]);
 const selectedTeam = ref(null);
@@ -401,7 +413,7 @@ const calendarDays = computed(() => {
 const fetchProjects = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/projects', {
+    const response = await axios.get('http://localhost:5001/projects', {
       headers: { Authorization: `Bearer ${token}` }
     });
     projects.value = response.data;
@@ -417,7 +429,22 @@ const selectProject = async (project) => {
   currentTeams.value = project.teams || [];
   selectedTeam.value = null;
   teamMembers.value = [];
+  activeProjectMenu.value = null;
   await fetchProjectTasks(project.projectId);
+};
+
+const toggleProjectMenu = (projectId) => {
+  activeProjectMenu.value = activeProjectMenu.value === projectId ? null : projectId;
+};
+
+const viewMyTasks = (project) => {
+  activeProjectMenu.value = null;
+  router.push('/my-tasks');
+};
+
+const viewProjectDetails = (project) => {
+  activeProjectMenu.value = null;
+  router.push(`/projects/${project.projectId}`);
 };
 
 const selectTeam = async (team) => {
@@ -428,7 +455,7 @@ const selectTeam = async (team) => {
 const fetchProjectTasks = async (projectId) => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5000/projects/${projectId}`, {
+    const response = await axios.get(`http://localhost:5001/projects/${projectId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
@@ -444,7 +471,7 @@ const fetchProjectTasks = async (projectId) => {
 const fetchTeamMembers = async (teamId) => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5000/teams/${teamId}`, {
+    const response = await axios.get(`http://localhost:5001/teams/${teamId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     teamMembers.value = response.data.users || [];
@@ -475,7 +502,7 @@ const changePriority = async (task) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}`, {
       priority: newPriority
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -496,7 +523,7 @@ const changeStatus = async (task) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}/status`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
       status: newStatus
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -515,7 +542,7 @@ const deleteTask = async (task) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5000/tasks/${task.taskId}`, {
+    await axios.delete(`http://localhost:5001/tasks/${task.taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
@@ -573,7 +600,7 @@ const closeWhiteboard = () => {
 const connectWebSocket = () => {
   if (socket) return;
   
-  socket = io('http://localhost:5000');
+  socket = io('http://localhost:5001');
   
   const userId = localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9);
   const username = localStorage.getItem('username') || 'User';
@@ -710,7 +737,7 @@ const loadWhiteboard = async () => {
   const token = localStorage.getItem('token');
   try {
     const response = await axios.get(
-      `http://localhost:5000/projects/${selectedProject.value.projectId}/whiteboard`,
+      `http://localhost:5001/projects/${selectedProject.value.projectId}/whiteboard`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     
@@ -888,12 +915,12 @@ onBeforeUnmount(() => {
 .manager-dashboard {
   display: flex;
   height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .left-sidebar {
   width: 250px;
-  background: white;
+  background: var(--card-bg);
   border-right: 1px solid #e0e0e0;
   overflow-y: auto;
   padding: 20px 0;
@@ -908,7 +935,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 10px;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 
@@ -929,11 +956,72 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+  justify-content: space-between;
+}
+
+.project-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.project-menu-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.project-item:hover .project-menu-btn {
+  opacity: 1;
+}
+
+.project-menu-btn:hover {
+  color: var(--text-primary);
+}
+
+.project-context-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 180px;
+  margin-top: 4px;
+}
+
+.project-context-menu .menu-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.project-context-menu .menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+.project-context-menu .menu-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.project-context-menu .menu-item:last-child {
+  border-radius: 0 0 6px 6px;
 }
 
 .project-item:hover,
 .team-item:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .project-item.active,
@@ -978,6 +1066,26 @@ onBeforeUnmount(() => {
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.member-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.member-role {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: capitalize;
 }
 
 .main-content {
@@ -989,7 +1097,7 @@ onBeforeUnmount(() => {
 
 .content-header {
   padding: 20px 30px;
-  background: white;
+  background: var(--card-bg);
   border-bottom: 1px solid #e0e0e0;
 }
 
@@ -1012,7 +1120,7 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 400px;
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .empty-project-state .empty-icon {
@@ -1039,7 +1147,7 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-bottom: 20px;
   padding: 15px;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
 }
 
@@ -1051,15 +1159,15 @@ onBeforeUnmount(() => {
 
 .search-filter input {
   padding: 8px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   width: 300px;
 }
 
 .filter-btn {
   padding: 8px 16px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
@@ -1067,7 +1175,7 @@ onBeforeUnmount(() => {
 }
 
 .filter-btn:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .view-toggles {
@@ -1078,8 +1186,8 @@ onBeforeUnmount(() => {
 .view-btn {
   width: 40px;
   height: 40px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-size: 18px;
@@ -1088,18 +1196,18 @@ onBeforeUnmount(() => {
 }
 
 .view-btn:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .view-btn.active {
   background: #000;
   color: white;
-  border-color: #000;
+  border-color: var(--text-primary);
 }
 
 /* List View */
 .list-view {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -1119,7 +1227,7 @@ onBeforeUnmount(() => {
   text-align: left;
   font-weight: 600;
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .task-row {
@@ -1137,7 +1245,7 @@ onBeforeUnmount(() => {
 }
 
 .task-id {
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -1146,7 +1254,7 @@ onBeforeUnmount(() => {
 }
 
 .task-project {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .priority-badge {
@@ -1173,7 +1281,7 @@ onBeforeUnmount(() => {
 }
 
 .task-date {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -1198,8 +1306,8 @@ onBeforeUnmount(() => {
   position: absolute;
   right: 0;
   top: 100%;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   z-index: 1000;
@@ -1218,7 +1326,7 @@ onBeforeUnmount(() => {
 }
 
 .context-menu div:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 /* Grid View */
@@ -1229,7 +1337,7 @@ onBeforeUnmount(() => {
 }
 
 .task-card {
-  background: white;
+  background: var(--card-bg);
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -1249,7 +1357,7 @@ onBeforeUnmount(() => {
 }
 
 .task-card p {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
   margin: 0 0 15px 0;
 }
@@ -1262,13 +1370,13 @@ onBeforeUnmount(() => {
 }
 
 .deadline {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 /* Calendar View */
 .calendar-view {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 20px;
 }
@@ -1282,7 +1390,7 @@ onBeforeUnmount(() => {
 
 .calendar-header button {
   background: none;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   width: 36px;
   height: 36px;
@@ -1312,7 +1420,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   font-size: 12px;
   padding: 10px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .calendar-days {
@@ -1320,11 +1428,11 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(7, 1fr);
   gap: 1px;
   background: #e0e0e0;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
 }
 
 .calendar-day {
-  background: white;
+  background: var(--card-bg);
   min-height: 100px;
   padding: 8px;
 }
@@ -1378,7 +1486,7 @@ onBeforeUnmount(() => {
 /* Right Sidebar */
 .right-sidebar {
   width: 200px;
-  background: white;
+  background: var(--card-bg);
   border-left: 1px solid #e0e0e0;
   padding: 30px 20px;
 }
@@ -1433,7 +1541,7 @@ onBeforeUnmount(() => {
 
 .stat-label {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .stat-value {
@@ -1473,7 +1581,7 @@ onBeforeUnmount(() => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 8px;
   max-width: 500px;
@@ -1499,7 +1607,7 @@ onBeforeUnmount(() => {
 }
 
 .whiteboard-modal {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 30px;
   max-width: 900px;
@@ -1526,7 +1634,7 @@ onBeforeUnmount(() => {
   border: none;
   font-size: 28px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -1538,7 +1646,7 @@ onBeforeUnmount(() => {
 
 .btn-close-modal:hover {
   background: #f0f0f0;
-  color: #000;
+  color: var(--text-primary);
 }
 
 .whiteboard-toolbar {
@@ -1546,15 +1654,15 @@ onBeforeUnmount(() => {
   gap: 10px;
   margin-bottom: 20px;
   padding: 15px;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   border-radius: 8px;
   flex-wrap: wrap;
 }
 
 .whiteboard-toolbar button {
   padding: 8px 16px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
@@ -1562,7 +1670,7 @@ onBeforeUnmount(() => {
 }
 
 .whiteboard-toolbar button:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   color: #333;
 }
 
@@ -1578,13 +1686,13 @@ onBeforeUnmount(() => {
 .whiteboard-toolbar input[type="color"] {
   width: 40px;
   height: 40px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .whiteboard-canvas {
-  background: white;
+  background: var(--card-bg);
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   cursor: crosshair;
@@ -1597,8 +1705,8 @@ onBeforeUnmount(() => {
   right: 30px;
   top: 140px;
   width: 280px;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   max-height: 400px;
@@ -1625,8 +1733,8 @@ onBeforeUnmount(() => {
 .history-entry button {
   margin-top: 5px;
   padding: 5px 10px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
@@ -1634,7 +1742,7 @@ onBeforeUnmount(() => {
 }
 
 .history-entry button:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   color: #333;
 }
 </style>

@@ -10,18 +10,41 @@
       <div v-if="!team.users || team.users.length === 0" class="no-members">
         <p>No members yet. Add members below!</p>
       </div>
-      <ul v-else class="members-list">
-        <li v-for="user in team.users" :key="user.userId" class="member-item">
-          <div class="member-info">
-            <strong>{{ user.email }}</strong>
-            <span v-if="user.firstName || user.lastName" class="member-name">
-              ({{ user.firstName }} {{ user.lastName }})
-            </span>
-            <span class="member-role">{{ user.role }}</span>
-          </div>
-          <button @click="removeMember(user.email)" class="btn-remove">Remove</button>
-        </li>
-      </ul>
+      <div v-else>
+        <!-- Managers Section -->
+        <div v-if="groupedCurrentMembers.managers.length > 0" class="role-group">
+          <h3 class="role-header">Managers ({{ groupedCurrentMembers.managers.length }})</h3>
+          <ul class="members-list">
+            <li v-for="user in groupedCurrentMembers.managers" :key="user.userId" class="member-item">
+              <div class="member-info">
+                <strong>{{ user.email }}</strong>
+                <span v-if="user.firstName || user.lastName" class="member-name">
+                  ({{ user.firstName }} {{ user.lastName }})
+                </span>
+                <span class="member-role">{{ user.role?.name || 'N/A' }}</span>
+              </div>
+              <button @click="removeMember(user.email)" class="btn-remove">Remove</button>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- Users Section -->
+        <div v-if="groupedCurrentMembers.users.length > 0" class="role-group">
+          <h3 class="role-header">Users ({{ groupedCurrentMembers.users.length }})</h3>
+          <ul class="members-list">
+            <li v-for="user in groupedCurrentMembers.users" :key="user.userId" class="member-item">
+              <div class="member-info">
+                <strong>{{ user.email }}</strong>
+                <span v-if="user.firstName || user.lastName" class="member-name">
+                  ({{ user.firstName }} {{ user.lastName }})
+                </span>
+                <span class="member-role">{{ user.role?.name || 'N/A' }}</span>
+              </div>
+              <button @click="removeMember(user.email)" class="btn-remove">Remove</button>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
     
     <div class="section add-member-section">
@@ -30,13 +53,24 @@
         <div class="form-group">
           <select v-model="newMemberEmail" class="user-select">
             <option value="">-- Select a user --</option>
-            <option 
-              v-for="user in availableUsers" 
-              :key="user.userId" 
-              :value="user.email"
-            >
-              {{ user.email }} ({{ user.firstName }} {{ user.lastName }}) - {{ user.role }}
-            </option>
+            <optgroup v-if="groupedAvailableUsers.managers.length > 0" label="Managers">
+              <option 
+                v-for="user in groupedAvailableUsers.managers" 
+                :key="user.userId" 
+                :value="user.email"
+              >
+                {{ user.email }} ({{ user.firstName }} {{ user.lastName }})
+              </option>
+            </optgroup>
+            <optgroup v-if="groupedAvailableUsers.users.length > 0" label="Users">
+              <option 
+                v-for="user in groupedAvailableUsers.users" 
+                :key="user.userId" 
+                :value="user.email"
+              >
+                {{ user.email }} ({{ user.firstName }} {{ user.lastName }})
+              </option>
+            </optgroup>
           </select>
           <button @click="addMember" :disabled="!newMemberEmail" class="btn-add">Add to Team</button>
         </div>
@@ -64,10 +98,60 @@ const availableUsers = computed(() => {
   return allUsers.value.filter(user => !teamUserEmails.includes(user.email));
 });
 
+const groupedAvailableUsers = computed(() => {
+  const users = availableUsers.value;
+  
+  const managers = users
+    .filter(u => (u.role?.name || u.role) === 'manager')
+    .sort((a, b) => {
+      const emailA = a.email.toLowerCase();
+      const emailB = b.email.toLowerCase();
+      return emailA.localeCompare(emailB);
+    });
+  
+  const regularUsers = users
+    .filter(u => (u.role?.name || u.role) === 'user')
+    .sort((a, b) => {
+      const emailA = a.email.toLowerCase();
+      const emailB = b.email.toLowerCase();
+      return emailA.localeCompare(emailB);
+    });
+  
+  return {
+    managers,
+    users: regularUsers
+  };
+});
+
+const groupedCurrentMembers = computed(() => {
+  if (!team.value || !team.value.users) return { managers: [], users: [] };
+  
+  const managers = team.value.users
+    .filter(u => (u.role?.name || u.role) === 'manager')
+    .sort((a, b) => {
+      const emailA = a.email.toLowerCase();
+      const emailB = b.email.toLowerCase();
+      return emailA.localeCompare(emailB);
+    });
+  
+  const regularUsers = team.value.users
+    .filter(u => (u.role?.name || u.role) === 'user')
+    .sort((a, b) => {
+      const emailA = a.email.toLowerCase();
+      const emailB = b.email.toLowerCase();
+      return emailA.localeCompare(emailB);
+    });
+  
+  return {
+    managers,
+    users: regularUsers
+  };
+});
+
 const fetchTeam = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5000/teams/${route.params.id}`, {
+    const response = await axios.get(`http://localhost:5001/teams/${route.params.id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     team.value = response.data;
@@ -80,7 +164,7 @@ const fetchTeam = async () => {
 const fetchAllUsers = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/users', {
+    const response = await axios.get('http://localhost:5001/users', {
       headers: { Authorization: `Bearer ${token}` }
     });
     allUsers.value = response.data;
@@ -97,7 +181,7 @@ const addMember = async () => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.post(`http://localhost:5000/teams/${route.params.id}/users`, {
+    await axios.post(`http://localhost:5001/teams/${route.params.id}/users`, {
       email: newMemberEmail.value
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -116,7 +200,7 @@ const removeMember = async (email) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5000/teams/${route.params.id}/users`, {
+    await axios.delete(`http://localhost:5001/teams/${route.params.id}/users`, {
       data: { email },
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -164,8 +248,21 @@ onMounted(async () => {
   background: #555;
 }
 
+.role-group {
+  margin-bottom: 20px;
+}
+
+.role-header {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 10px 0;
+  padding-bottom: 5px;
+  border-bottom: 2px solid var(--border-color);
+}
+
 .section {
-  background: white;
+  background: var(--card-bg);
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 20px;
@@ -174,14 +271,14 @@ onMounted(async () => {
 
 .section h2 {
   margin-top: 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 18px;
 }
 
 .no-members {
   text-align: center;
   padding: 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .members-list {
@@ -195,7 +292,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .member-item:last-child {
@@ -209,11 +306,11 @@ onMounted(async () => {
 }
 
 .member-info strong {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .member-name {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -241,7 +338,7 @@ onMounted(async () => {
 }
 
 .add-member-section {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   
 }
 
@@ -253,11 +350,11 @@ onMounted(async () => {
 .user-select {
   flex: 1;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 14px;
-  background: rgb(255, 255, 255);
-  color: rgb(0, 0, 0);
+  background: var(--card-bg);
+  color: var(--text-primary);
 }
 
 .btn-add {
@@ -283,6 +380,6 @@ onMounted(async () => {
 .loading {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-secondary);
 }
 </style>

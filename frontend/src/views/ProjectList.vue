@@ -54,7 +54,7 @@ const isManager = computed(() => role.value === 'manager' || role.value === 'adm
 const fetchProjects = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/projects', {
+    const response = await axios.get('http://localhost:5001/projects', {
       headers: { Authorization: `Bearer ${token}` }
     });
     projects.value = response.data;
@@ -102,7 +102,7 @@ onMounted(fetchProjects);
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .empty-state button {
@@ -116,7 +116,7 @@ onMounted(fetchProjects);
 }
 
 .project-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -130,11 +130,11 @@ onMounted(fetchProjects);
 
 .project-card h3 {
   margin: 0 0 10px 0;
-  color: #000;
+  color: var(--text-primary);
 }
 
 .description {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
   margin-bottom: 15px;
   line-height: 1.5;
@@ -148,7 +148,7 @@ onMounted(fetchProjects);
 }
 
 .meta-item {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .jira-link {

@@ -22,7 +22,7 @@ const requestReset = async () => {
   
   // First, check if user exists
   try {
-    const response = await axios.post('http://localhost:5000/reset-password', {
+    const response = await axios.post('http://localhost:5001/reset-password', {
       email: userEmail
     });
     
@@ -36,7 +36,7 @@ const requestReset = async () => {
         
         if (newPassword === confirmPassword) {
           // Update password
-          await axios.post('http://localhost:5000/update-password', {
+          await axios.post('http://localhost:5001/update-password', {
             email: userEmail,
             newPassword: newPassword
           });

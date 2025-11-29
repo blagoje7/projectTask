@@ -46,7 +46,7 @@ const router = useRouter();
 
 const login = async () => {
   try {
-    const response = await axios.post('http://localhost:5000/login', {
+    const response = await axios.post('http://localhost:5001/login', {
       email: email.value,
       password: password.value
     });
@@ -73,12 +73,12 @@ const login = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f5f5;
+  background-color: var(--bg-secondary);
 }
 
 .login-card {
   width: 450px;
-  background: white;
+  background: var(--card-bg);
   text-align: center;
   padding: 60px 50px;
   border-radius: 8px;
@@ -89,7 +89,7 @@ const login = async () => {
   font-size: 36px;
   font-weight: 600;
   margin-bottom: 100px;
-  color: #000;
+  color: var(--text-primary);
 }
 
 .login-form-wrapper {
@@ -100,12 +100,12 @@ const login = async () => {
   font-size: 28px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #000;
+  color: var(--text-primary);
 }
 
 .login-subtitle {
   font-size: 15px;
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 40px;
   line-height: 1.5;
 }
@@ -120,22 +120,22 @@ form {
 .input-field {
   width: 100%;
   padding: 14px 18px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 15px;
-  color: #333;
-  background: white;
+  color: var(--text-primary);
+  background: var(--card-bg);
   transition: border-color 0.2s;
   box-sizing: border-box;
 }
 
 .input-field::placeholder {
-  color: #999;
+  color: var(--text-secondary);
 }
 
 .input-field:focus {
   outline: none;
-  border-color: #000;
+  border-color: var(--text-primary);
 }
 
 .login-button {
@@ -166,12 +166,12 @@ form {
 .divider-line {
   width: 2px;
   height: 50px;
-  background: #e0e0e0;
+  background: var(--border-color);
 }
 
 .forgot-link {
   display: inline-block;
-  color: #000;
+  color: var(--text-primary);
   text-decoration: none;
   font-size: 15px;
   font-weight: 500;

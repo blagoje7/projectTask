@@ -3,8 +3,8 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color: #333;
-  background-color: #f5f5f5;
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -18,7 +18,7 @@
 
 a {
   font-weight: 500;
-  color: #000;
+  color: var(--text-primary);
   text-decoration: none;
 }
 a:hover {
@@ -30,20 +30,20 @@ body {
   padding: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--bg-secondary);
 }
 
 h1 {
   font-size: 2em;
   line-height: 1.1;
   font-weight: 600;
-  color: #000;
+  color: var(--text-primary);
 }
 
 h2 {
   font-size: 1.5em;
   font-weight: 600;
-  color: #000;
+  color: var(--text-primary);
 }
 
 button {
@@ -71,10 +71,10 @@ input, select, textarea {
   font-family: inherit;
   font-size: 14px;
   padding: 12px 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: white;
-  color: #333;
+  background: var(--card-bg);
+  color: var(--text-primary);
   transition: border-color 0.2s;
 }
 
@@ -84,11 +84,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 input::placeholder, textarea::placeholder {
-  color: #999;
+  color: var(--text-secondary);
 }
 
 .card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);

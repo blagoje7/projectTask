@@ -102,7 +102,7 @@ const fetchProjectData = async () => {
   const token = localStorage.getItem('token');
   try {
     // Fetch project to get epics
-    const projectResponse = await axios.get(`http://localhost:5000/projects/${projectId}`, {
+    const projectResponse = await axios.get(`http://localhost:5001/projects/${projectId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     epics.value = projectResponse.data.epics || [];
@@ -113,7 +113,7 @@ const fetchProjectData = async () => {
     const members = [];
 
     for (const team of teams) {
-      const teamResponse = await axios.get(`http://localhost:5000/teams/${team.teamId}`, {
+      const teamResponse = await axios.get(`http://localhost:5001/teams/${team.teamId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -158,7 +158,7 @@ const submitTask = async () => {
   }
 
   try {
-    await axios.post(`http://localhost:5000/projects/${projectId}/tasks`, payload, {
+    await axios.post(`http://localhost:5001/projects/${projectId}/tasks`, payload, {
       headers: { Authorization: `Bearer ${token}` }
     });
     alert('Task created successfully');
@@ -184,7 +184,7 @@ onMounted(fetchProjectData);
 }
 
 .card {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -210,7 +210,7 @@ h1 {
 .form-group textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
@@ -221,14 +221,14 @@ h1 {
 }
 
 .empty-message {
-  color: #666;
+  color: var(--text-secondary);
   font-style: italic;
 }
 
 .assignee-list {
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 10px;
 }
@@ -241,7 +241,7 @@ h1 {
 }
 
 .assignee-checkbox:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   border-radius: 4px;
 }
 

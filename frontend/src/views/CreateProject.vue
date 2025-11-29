@@ -66,7 +66,7 @@ const availableTeams = ref([]);
 const fetchTeams = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/teams', {
+    const response = await axios.get('http://localhost:5001/teams', {
       headers: { Authorization: `Bearer ${token}` }
     });
     availableTeams.value = response.data;
@@ -79,7 +79,7 @@ const fetchTeams = async () => {
 const createProject = async () => {
   const token = localStorage.getItem('token');
   try {
-    await axios.post('http://localhost:5000/projects', {
+    await axios.post('http://localhost:5001/projects', {
       name: name.value,
       description: description.value,
       teamIds: selectedTeamIds.value
@@ -105,7 +105,7 @@ onMounted(fetchTeams);
 }
 
 .project-form {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -119,27 +119,29 @@ onMounted(fetchTeams);
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .form-group input,
 .form-group textarea {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 14px;
   box-sizing: border-box;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #000;
+  border-color: var(--text-primary);
 }
 
 .teams-selector {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 15px;
   max-height: 200px;
@@ -162,10 +164,11 @@ onMounted(fetchTeams);
   cursor: pointer;
   margin: 0;
   font-weight: normal;
+  color: var(--text-primary);
 }
 
 .no-teams {
-  color: #999;
+  color: var(--text-secondary);
   font-size: 14px;
   font-style: italic;
 }
@@ -187,20 +190,21 @@ onMounted(fetchTeams);
 }
 
 .btn-cancel {
-  background: #e0e0e0;
-  color: #333;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .btn-cancel:hover {
-  background: #d0d0d0;
+  background: var(--border-color);
 }
 
 .btn-submit {
-  background: #000;
-  color: white;
+  background: var(--text-primary);
+  color: var(--bg-primary);
 }
 
 .btn-submit:hover {
-  background: #333;
+  opacity: 0.8;
 }
 </style>

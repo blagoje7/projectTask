@@ -11,10 +11,16 @@
             v-for="project in projects"
             :key="project.projectId"
             :class="['project-item', { active: selectedProject?.projectId === project.projectId }]"
-            @click="selectProject(project)"
           >
-            <span class="project-indicator"></span>
-            {{ project.name }}
+            <div class="project-main" @click="selectProject(project)">
+              <span class="project-indicator"></span>
+              {{ project.name }}
+            </div>
+            <button @click.stop="toggleProjectMenu(project.projectId)" class="project-menu-btn">⋯</button>
+            <div v-if="activeProjectMenu === project.projectId" class="project-context-menu">
+              <div @click="viewMyTasks(project)" class="menu-item">📄 My Tasks</div>
+              <div @click="viewProjectDetails(project)" class="menu-item">📊 Project Details</div>
+            </div>
           </div>
         </div>
       </div>
@@ -439,7 +445,9 @@
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 let socket = null;
 
 // User role
@@ -448,6 +456,7 @@ const userName = ref(localStorage.getItem('username') || 'User');
 
 // State
 const projects = ref([]);
+const activeProjectMenu = ref(null);
 const selectedProject = ref(null);
 const currentTeams = ref([]);
 const selectedTeam = ref(null);
@@ -589,7 +598,7 @@ const calendarDays = computed(() => {
 const fetchProjects = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/projects', {
+    const response = await axios.get('http://localhost:5001/projects', {
       headers: { Authorization: `Bearer ${token}` }
     });
     projects.value = response.data;
@@ -605,7 +614,22 @@ const selectProject = async (project) => {
   currentTeams.value = project.teams || [];
   selectedTeam.value = null;
   teamMembers.value = [];
+  activeProjectMenu.value = null;
   await fetchProjectTasks(project.projectId);
+};
+
+const toggleProjectMenu = (projectId) => {
+  activeProjectMenu.value = activeProjectMenu.value === projectId ? null : projectId;
+};
+
+const viewMyTasks = (project) => {
+  activeProjectMenu.value = null;
+  router.push('/my-tasks');
+};
+
+const viewProjectDetails = (project) => {
+  activeProjectMenu.value = null;
+  router.push(`/projects/${project.projectId}`);
 };
 
 const selectTeam = async (team) => {
@@ -616,7 +640,7 @@ const selectTeam = async (team) => {
 const fetchProjectTasks = async (projectId) => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5000/projects/${projectId}`, {
+    const response = await axios.get(`http://localhost:5001/projects/${projectId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
@@ -632,7 +656,7 @@ const fetchProjectTasks = async (projectId) => {
 const fetchTeamMembers = async (teamId) => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5000/teams/${teamId}`, {
+    const response = await axios.get(`http://localhost:5001/teams/${teamId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     teamMembers.value = response.data.users || [];
@@ -728,7 +752,7 @@ const saveTaskEdit = async () => {
     : null;
 
   try {
-    await axios.put(`http://localhost:5000/tasks/${editingTask.value.taskId}`, {
+    await axios.put(`http://localhost:5001/tasks/${editingTask.value.taskId}`, {
       name: editingTask.value.name,
       description: editingTask.value.description,
       priority: editingTask.value.priority,
@@ -762,7 +786,7 @@ const saveTaskEdit = async () => {
 const updateTaskPriority = async (task, priority) => {
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}`, {
       priority
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -780,7 +804,7 @@ const updateTaskPriority = async (task, priority) => {
 const updateTaskStatus = async (task, status) => {
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}/status`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
       status
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -802,7 +826,7 @@ const changePriority = async (task) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}`, {
       priority: newPriority
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -823,7 +847,7 @@ const changeStatus = async (task) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}/status`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
       status: newStatus
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -842,7 +866,7 @@ const deleteTask = async (task) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5000/tasks/${task.taskId}`, {
+    await axios.delete(`http://localhost:5001/tasks/${task.taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     
@@ -861,7 +885,7 @@ const selectUser = (user) => {
 const viewTaskAssignees = async (task) => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5000/tasks/${task.taskId}/assignees`, {
+    const response = await axios.get(`http://localhost:5001/tasks/${task.taskId}/assignees`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     taskAssignees.value = response.data;
@@ -878,7 +902,7 @@ const setTaskForReview = async (task) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}/status`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
       status: 'for_review'
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -939,7 +963,7 @@ const closeWhiteboard = () => {
 const connectWebSocket = () => {
   if (socket) return;
   
-  socket = io('http://localhost:5000');
+  socket = io('http://localhost:5001');
   
   const userId = localStorage.getItem('userId');
   const username = localStorage.getItem('username') || 'User';
@@ -1081,7 +1105,7 @@ const loadWhiteboard = async () => {
   const token = localStorage.getItem('token');
   try {
     const response = await axios.get(
-      `http://localhost:5000/projects/${selectedProject.value.projectId}/whiteboard`,
+      `http://localhost:5001/projects/${selectedProject.value.projectId}/whiteboard`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     
@@ -1261,12 +1285,12 @@ onBeforeUnmount(() => {
 .dashboard {
   display: flex;
   height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .left-sidebar {
   width: 250px;
-  background: white;
+  background: var(--card-bg);
   border-right: 1px solid #e0e0e0;
   overflow-y: auto;
   padding: 20px 0;
@@ -1281,7 +1305,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 10px;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 
@@ -1302,11 +1326,72 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+  justify-content: space-between;
+}
+
+.project-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.project-menu-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.project-item:hover .project-menu-btn {
+  opacity: 1;
+}
+
+.project-menu-btn:hover {
+  color: var(--text-primary);
+}
+
+.project-context-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 180px;
+  margin-top: 4px;
+}
+
+.project-context-menu .menu-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.project-context-menu .menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+.project-context-menu .menu-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.project-context-menu .menu-item:last-child {
+  border-radius: 0 0 6px 6px;
 }
 
 .project-item:hover,
 .team-item:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .project-item.active,
@@ -1363,7 +1448,7 @@ onBeforeUnmount(() => {
 
 .content-header {
   padding: 20px 30px;
-  background: white;
+  background: var(--card-bg);
   border-bottom: 1px solid #e0e0e0;
 }
 
@@ -1386,7 +1471,7 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 400px;
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .empty-project-state .empty-icon {
@@ -1413,7 +1498,7 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-bottom: 20px;
   padding: 15px;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
 }
 
@@ -1425,23 +1510,25 @@ onBeforeUnmount(() => {
 
 .search-filter input {
   padding: 8px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   width: 300px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .filter-btn {
   padding: 8px 16px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .filter-btn:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .view-toggles {
@@ -1452,12 +1539,12 @@ onBeforeUnmount(() => {
 .view-btn {
   width: 40px;
   height: 40px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-size: 24px;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -1466,18 +1553,18 @@ onBeforeUnmount(() => {
 }
 
 .view-btn:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .view-btn.active {
-  background: #000;
-  color: white;
-  border-color: #000;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-color: var(--text-primary);
 }
 
 /* List View */
 .list-view {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
 }
 
@@ -1496,7 +1583,7 @@ onBeforeUnmount(() => {
   text-align: left;
   font-weight: 600;
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .task-row {
@@ -1515,7 +1602,7 @@ onBeforeUnmount(() => {
 }
 
 .task-id {
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -1524,7 +1611,7 @@ onBeforeUnmount(() => {
 }
 
 .task-project {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .priority-badge {
@@ -1578,7 +1665,7 @@ onBeforeUnmount(() => {
 }
 
 .task-date {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -1603,13 +1690,13 @@ onBeforeUnmount(() => {
 
 .menu-btn:hover {
   background: #f0f0f0;
-  color: #000;
+  color: var(--text-primary);
 }
 
 .context-menu {
   position: fixed;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   min-width: 180px;
@@ -1627,7 +1714,7 @@ onBeforeUnmount(() => {
 }
 
 .context-menu > div:not(.submenu-item):hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .submenu-item {
@@ -1642,7 +1729,7 @@ onBeforeUnmount(() => {
 }
 
 .submenu-item:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .submenu-item .arrow {
@@ -1654,8 +1741,8 @@ onBeforeUnmount(() => {
 .submenu {
   position: absolute;
   top: -1px;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   min-width: 140px;
@@ -1685,7 +1772,7 @@ onBeforeUnmount(() => {
 }
 
 .submenu div:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .delete-item {
@@ -1704,7 +1791,7 @@ onBeforeUnmount(() => {
 }
 
 .task-card {
-  background: white;
+  background: var(--card-bg);
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -1725,7 +1812,7 @@ onBeforeUnmount(() => {
 }
 
 .task-card p {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
   margin: 0 0 15px 0;
 }
@@ -1738,13 +1825,13 @@ onBeforeUnmount(() => {
 }
 
 .deadline {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 /* Calendar View */
 .calendar-view {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 20px;
 }
@@ -1757,8 +1844,8 @@ onBeforeUnmount(() => {
 }
 
 .calendar-header button {
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   width: 36px;
   height: 36px;
@@ -1769,7 +1856,7 @@ onBeforeUnmount(() => {
 }
 
 .calendar-header button:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .calendar-header h3 {
@@ -1794,7 +1881,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   font-size: 12px;
   padding: 10px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .calendar-days {
@@ -1802,11 +1889,11 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(7, 1fr);
   gap: 1px;
   background: #e0e0e0;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
 }
 
 .calendar-day {
-  background: white;
+  background: var(--card-bg);
   min-height: 100px;
   padding: 8px;
 }
@@ -1863,7 +1950,7 @@ onBeforeUnmount(() => {
   bottom: 0;
   left: 250px;
   right: 0;
-  background: white;
+  background: var(--card-bg);
   border-top: 2px solid #e0e0e0;
   padding: 20px 30px;
   display: flex;
@@ -1883,7 +1970,7 @@ onBeforeUnmount(() => {
 .progress-container h3 {
   font-size: 16px;
   margin: 0;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .progress-info {
@@ -1931,7 +2018,7 @@ onBeforeUnmount(() => {
 
 .stat-label {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .stat-value {
@@ -1977,7 +2064,7 @@ onBeforeUnmount(() => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 8px;
   max-width: 500px;
@@ -2023,7 +2110,7 @@ onBeforeUnmount(() => {
 .form-select {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
@@ -2077,7 +2164,7 @@ onBeforeUnmount(() => {
 }
 
 .whiteboard-modal {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 30px;
   max-width: 900px;
@@ -2104,7 +2191,7 @@ onBeforeUnmount(() => {
   border: none;
   font-size: 28px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -2116,7 +2203,7 @@ onBeforeUnmount(() => {
 
 .btn-close-modal:hover {
   background: #f0f0f0;
-  color: #000;
+  color: var(--text-primary);
 }
 
 .whiteboard-toolbar {
@@ -2124,46 +2211,46 @@ onBeforeUnmount(() => {
   gap: 10px;
   margin-bottom: 20px;
   padding: 15px;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   border-radius: 8px;
   flex-wrap: wrap;
 }
 
 .whiteboard-toolbar button {
   padding: 8px 16px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .whiteboard-toolbar button:hover {
-  background: #f5f5f5;
-  color: #333;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .whiteboard-toolbar button.active {
-  background: #000;
-  color: white;
+  background: var(--text-primary);
+  color: var(--bg-primary);
 }
 
 .whiteboard-toolbar button.active:hover {
-  background: #333;
+  opacity: 0.8;
 }
 
 .whiteboard-toolbar input[type="color"] {
   width: 40px;
   height: 40px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .whiteboard-canvas {
   background: white;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
   cursor: crosshair;
   display: block;
@@ -2175,8 +2262,8 @@ onBeforeUnmount(() => {
   right: 30px;
   top: 140px;
   width: 280px;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   max-height: 400px;
@@ -2203,8 +2290,8 @@ onBeforeUnmount(() => {
 .history-entry button {
   margin-top: 5px;
   padding: 5px 10px;
-  border: 1px solid #e0e0e0;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
@@ -2212,7 +2299,7 @@ onBeforeUnmount(() => {
 }
 
 .history-entry button:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   color: #333;
 }
 
@@ -2229,7 +2316,7 @@ onBeforeUnmount(() => {
 }
 
 .user-view > p {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 40px;
 }
 
@@ -2240,7 +2327,7 @@ onBeforeUnmount(() => {
 }
 
 .stat-card {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -2256,14 +2343,14 @@ onBeforeUnmount(() => {
 .stat-number {
   font-size: 48px;
   font-weight: bold;
-  color: #000;
+  color: var(--text-primary);
   margin: 20px 0;
 }
 
 .stat-link {
   display: inline-block;
   margin-top: 15px;
-  color: #000;
+  color: var(--text-primary);
   text-decoration: none;
   font-weight: 500;
 }
@@ -2281,7 +2368,7 @@ onBeforeUnmount(() => {
 /* User Details Sidebar */
 .user-details-sidebar {
   width: 320px;
-  background: white;
+  background: var(--card-bg);
   border-left: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
@@ -2311,7 +2398,7 @@ onBeforeUnmount(() => {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   width: 32px;
   height: 32px;
   display: flex;
@@ -2321,7 +2408,7 @@ onBeforeUnmount(() => {
 }
 
 .btn-close-sidebar:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .user-details-content {
@@ -2336,7 +2423,7 @@ onBeforeUnmount(() => {
 .detail-group label {
   display: block;
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   margin-bottom: 5px;
   font-weight: 600;
@@ -2373,7 +2460,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 15px;
   padding: 15px;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   border-radius: 8px;
 }
 
@@ -2403,7 +2490,7 @@ onBeforeUnmount(() => {
 }
 
 .assignee-email {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -2420,7 +2507,7 @@ onBeforeUnmount(() => {
   top: 0;
   width: 350px;
   height: 100%;
-  background: white;
+  background: var(--card-bg);
   border-left: 1px solid #e0e0e0;
   box-shadow: -2px 0 10px rgba(0,0,0,0.1);
   z-index: 50;
@@ -2448,7 +2535,7 @@ onBeforeUnmount(() => {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   padding: 0;
   width: 30px;
   height: 30px;
@@ -2476,7 +2563,7 @@ onBeforeUnmount(() => {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   margin-bottom: 8px;
   letter-spacing: 0.5px;

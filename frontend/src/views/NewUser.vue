@@ -30,7 +30,7 @@ const role = ref('user');
 const createUser = async () => {
   try {
     const token = localStorage.getItem('token');
-    await axios.post('http://localhost:5000/users', {
+    await axios.post('http://localhost:5001/users', {
       email: email.value,
       firstName: firstName.value,
       lastName: lastName.value,

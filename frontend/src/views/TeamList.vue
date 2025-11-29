@@ -38,7 +38,7 @@ const newTeamName = ref('');
 const fetchTeams = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/teams', {
+    const response = await axios.get('http://localhost:5001/teams', {
       headers: { Authorization: `Bearer ${token}` }
     });
     teams.value = response.data;
@@ -56,7 +56,7 @@ const createTeam = async () => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.post('http://localhost:5000/teams', {
+    await axios.post('http://localhost:5001/teams', {
       name: newTeamName.value
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -75,7 +75,7 @@ const deleteTeam = async (id) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5000/teams/${id}`, {
+    await axios.delete(`http://localhost:5001/teams/${id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     alert('Team deleted successfully!');
@@ -97,7 +97,7 @@ onMounted(fetchTeams);
 }
 
 .create-team {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -112,9 +112,11 @@ onMounted(fetchTeams);
 .form-group input {
   flex: 1;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 14px;
+  background: var(--card-bg);
+  color: var(--text-primary);
 }
 
 .form-group button {
@@ -143,20 +145,20 @@ onMounted(fetchTeams);
 .no-teams {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .team-card {
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   padding: 15px;
   margin-bottom: 15px;
   border-radius: 8px;
-  background: white;
+  background: var(--card-bg);
 }
 
 .team-card h3 {
   margin: 0 0 10px 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .team-actions {
@@ -195,6 +197,6 @@ onMounted(fetchTeams);
 hr {
   margin: 30px 0;
   border: none;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--border-color);
 }
 </style>

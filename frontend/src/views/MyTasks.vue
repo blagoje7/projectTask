@@ -2,28 +2,48 @@
   <div class="my-tasks">
     <h1>My Tasks</h1>
 
-    <div class="filters">
-      <select v-model="statusFilter">
-        <option value="">All Statuses</option>
-        <option value="to_do">To Do</option>
-        <option value="in_progress">In Progress</option>
-        <option value="for_review">For Review</option>
-        <option value="done">Done</option>
-      </select>
+    <div class="toolbar">
+      <div class="filters">
+        <select v-model="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="to_do">To Do</option>
+          <option value="in_progress">In Progress</option>
+          <option value="for_review">For Review</option>
+          <option value="done">Done</option>
+        </select>
 
-      <select v-model="priorityFilter">
-        <option value="">All Priorities</option>
-        <option value="high">High</option>
-        <option value="medium">Medium</option>
-        <option value="low">Low</option>
-      </select>
+        <select v-model="priorityFilter">
+          <option value="">All Priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+
+      <div class="view-toggles">
+        <button 
+          :class="['view-btn', { active: viewMode === 'grid' }]" 
+          @click="viewMode = 'grid'"
+          title="Grid view"
+        >
+          ⊞
+        </button>
+        <button 
+          :class="['view-btn', { active: viewMode === 'list' }]" 
+          @click="viewMode = 'list'"
+          title="List view"
+        >
+          ☰
+        </button>
+      </div>
     </div>
 
     <div v-if="filteredTasks.length === 0" class="empty-state">
       <p>No tasks assigned to you</p>
     </div>
 
-    <div class="tasks-grid">
+    <!-- Grid View -->
+    <div v-if="viewMode === 'grid'" class="tasks-grid">
       <div v-for="task in filteredTasks" :key="task.taskId" class="task-card">
         <div class="task-header">
           <h3>{{ task.name }}</h3>
@@ -66,6 +86,67 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- List View -->
+    <div v-if="viewMode === 'list'" class="tasks-list">
+      <table class="tasks-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Epic</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Deadline</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="task in filteredTasks" :key="task.taskId" class="task-row">
+            <td>
+              <div class="task-name-cell">
+                <strong>{{ task.name }}</strong>
+                <p class="task-desc">{{ task.description || 'No description' }}</p>
+              </div>
+            </td>
+            <td>
+              <span v-if="task.epicName" class="epic-tag">{{ task.epicName }}</span>
+              <span v-else class="no-epic">-</span>
+            </td>
+            <td>
+              <span class="priority-badge" :class="'priority-' + task.priority">
+                {{ task.priority }}
+              </span>
+            </td>
+            <td>
+              <select v-model="task.status" @change="updateStatus(task)" class="status-select">
+                <option value="to_do">To Do</option>
+                <option value="in_progress">In Progress</option>
+                <option value="for_review">For Review</option>
+                <option value="done">Done</option>
+              </select>
+            </td>
+            <td>
+              <span v-if="task.deadline" class="deadline" :class="{ overdue: isOverdue(task.deadline) }">
+                {{ formatDate(task.deadline) }}
+              </span>
+              <span v-else>-</span>
+            </td>
+            <td>
+              <div class="actions-cell">
+                <button @click="viewProject(task.projectId)" class="btn-icon" title="View Project">📁</button>
+                <button @click.stop="toggleMenu(task.taskId)" class="btn-icon" title="More options">⋯</button>
+                <div v-if="activeMenu === task.taskId" class="context-menu">
+                  <div @click="showTaskDetails(task)" class="menu-item">Prikaži detalje</div>
+                  <div @click="viewAssignedUsers(task)" class="menu-item">Prikaži zaduzene</div>
+                  <div @click="changePriority(task)" class="menu-item">Promeni prioritet</div>
+                  <div @click="changeDeadline(task)" class="menu-item">Promeni datum</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Task Details Modal -->
@@ -159,6 +240,7 @@ import axios from 'axios';
 
 const router = useRouter();
 const tasks = ref([]);
+const viewMode = ref('grid');
 const statusFilter = ref('');
 const priorityFilter = ref('');
 const activeMenu = ref(null);
@@ -188,7 +270,7 @@ const filteredTasks = computed(() => {
 const fetchMyTasks = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/tasks/my-tasks', {
+    const response = await axios.get('http://localhost:5001/tasks/my-tasks', {
       headers: { Authorization: `Bearer ${token}` }
     });
     tasks.value = response.data;
@@ -201,7 +283,7 @@ const fetchMyTasks = async () => {
 const updateStatus = async (task) => {
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/tasks/${task.taskId}/status`, {
+    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
       status: task.status
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -251,7 +333,7 @@ const viewAssignedUsers = async (task) => {
   const token = localStorage.getItem('token');
   try {
     const response = await axios.get(
-      `http://localhost:5000/tasks/${task.taskId}/users`,
+      `http://localhost:5001/tasks/${task.taskId}/users`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     assignedUsers.value = response.data;
@@ -273,7 +355,7 @@ const savePriority = async () => {
   const token = localStorage.getItem('token');
   try {
     await axios.put(
-      `http://localhost:5000/tasks/${selectedTask.value.taskId}`,
+      `http://localhost:5001/tasks/${selectedTask.value.taskId}`,
       { priority: newPriority.value },
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -305,7 +387,7 @@ const saveDeadline = async () => {
   
   try {
     await axios.put(
-      `http://localhost:5000/tasks/${selectedTask.value.taskId}`,
+      `http://localhost:5001/tasks/${selectedTask.value.taskId}`,
       { deadline: deadlineTimestamp },
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -329,24 +411,55 @@ onMounted(fetchMyTasks);
   padding: 20px;
 }
 
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .filters {
   display: flex;
   gap: 15px;
-  margin-bottom: 20px;
 }
 
 .filters select {
   padding: 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: white;
+  background: var(--card-bg);
   cursor: pointer;
+}
+
+.view-toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.view-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s;
+}
+
+.view-btn:hover {
+  background: var(--bg-secondary);
+}
+
+.view-btn.active {
+  background: #000;
+  color: white;
+  border-color: var(--text-primary);
 }
 
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .tasks-grid {
@@ -356,7 +469,7 @@ onMounted(fetchMyTasks);
 }
 
 .task-card {
-  background: white;
+  background: var(--card-bg);
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -394,12 +507,12 @@ onMounted(fetchMyTasks);
   font-size: 24px;
   cursor: pointer;
   padding: 5px 10px;
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1;
 }
 
 .menu-btn:hover {
-  color: #000;
+  color: var(--text-primary);
   background: #f0f0f0;
   border-radius: 4px;
 }
@@ -408,8 +521,8 @@ onMounted(fetchMyTasks);
   position: absolute;
   top: 100%;
   right: 0;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   z-index: 1000;
@@ -433,7 +546,7 @@ onMounted(fetchMyTasks);
 }
 
 .menu-item:hover {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
 }
 
 .modal-overlay {
@@ -442,7 +555,7 @@ onMounted(fetchMyTasks);
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -450,7 +563,7 @@ onMounted(fetchMyTasks);
 }
 
 .modal-content {
-  background: white;
+  background: var(--card-bg);
   padding: 30px;
   border-radius: 8px;
   max-width: 500px;
@@ -492,7 +605,7 @@ onMounted(fetchMyTasks);
 }
 
 .user-email {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -510,7 +623,7 @@ onMounted(fetchMyTasks);
 .date-input {
   width: 100%;
   padding: 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 14px;
 }
@@ -554,6 +667,88 @@ onMounted(fetchMyTasks);
   margin-top: 20px;
 }
 
+/* List View Styles */
+.tasks-list {
+  background: var(--card-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tasks-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tasks-table thead {
+  background: var(--bg-secondary);
+}
+
+.tasks-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tasks-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background 0.2s;
+}
+
+.tasks-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.tasks-table td {
+  padding: 16px;
+  vertical-align: middle;
+}
+
+.task-name-cell {
+  min-width: 200px;
+}
+
+.task-name-cell strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.task-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.no-epic {
+  color: #999;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  position: relative;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  transition: color 0.2s;
+}
+
+.btn-icon:hover {
+  color: var(--text-primary);
+}
+
 .task-header h3 {
   margin: 0;
   font-size: 18px;
@@ -583,7 +778,7 @@ onMounted(fetchMyTasks);
 }
 
 .task-description {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
   margin: 10px 0;
   line-height: 1.5;
@@ -605,7 +800,7 @@ onMounted(fetchMyTasks);
 }
 
 .deadline {
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -628,9 +823,9 @@ onMounted(fetchMyTasks);
 .status-select {
   width: 100%;
   padding: 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: white;
+  background: var(--card-bg);
   cursor: pointer;
   font-size: 14px;
 }

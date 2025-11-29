@@ -18,59 +18,71 @@
     </div>
 
     <div class="user-count">
-      Total Users: {{ filteredUsers.length }}
+      Total Users: {{ allFilteredUsers.length }}
     </div>
 
-    <table class="user-table">
-      <thead>
-        <tr>
-          <th>Email</th>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>Role</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th>Teams</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-if="filteredUsers.length === 0">
-          <td colspan="8" class="no-data">No users found</td>
-        </tr>
-        <tr v-for="user in filteredUsers" :key="user.userId" :class="{ inactive: !user.isActive }">
-          <td class="email-cell">{{ user.email }}</td>
-          <td>{{ user.firstName || '-' }}</td>
-          <td>{{ user.lastName || '-' }}</td>
-          <td>
-            <span class="role-badge" :class="'role-' + user.role">
-              {{ user.role }}
-            </span>
-          </td>
-          <td>
-            <span class="status-badge" :class="user.isActive ? 'active' : 'inactive'">
-              {{ user.isActive ? 'Active' : 'Inactive' }}
-            </span>
-          </td>
-          <td class="date-cell">{{ formatDate(user.createdAt) }}</td>
-          <td class="teams-cell">
-            <span v-if="user.teams && user.teams.length > 0" class="teams-count">
-              {{ user.teams.length }} team(s)
-            </span>
-            <span v-else class="no-teams">No teams</span>
-          </td>
-          <td class="actions-cell">
-            <button 
-              @click="toggleActive(user)" 
-              :class="user.isActive ? 'btn-deactivate' : 'btn-activate'"
-            >
-              {{ user.isActive ? 'Deactivate' : 'Activate' }}
-            </button>
-            <button @click="viewDetails(user)" class="btn-details">Details</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-for="group in groupedUsers" :key="group.role" class="role-group">
+      <div class="group-header">
+        <h3 class="role-header">{{ group.role }}s ({{ group.filteredCount }})</h3>
+        <input 
+          v-model="groupSearchQueries[group.role.toLowerCase()]" 
+          :placeholder="`Filter ${group.role}s by name...`" 
+          class="group-search-input" 
+        />
+      </div>
+      
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Teams</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="user in group.users" :key="user.userId" :class="{ inactive: !user.isActive }">
+            <td class="email-cell">{{ user.email }}</td>
+            <td>{{ user.firstName || '-' }}</td>
+            <td>{{ user.lastName || '-' }}</td>
+            <td>
+              <span class="role-badge" :class="'role-' + (user.role?.name || user.role)">
+                {{ user.role?.name || user.role }}
+              </span>
+            </td>
+            <td>
+              <span class="status-badge" :class="user.isActive ? 'active' : 'inactive'">
+                {{ user.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td class="date-cell">{{ formatDate(user.createdAt) }}</td>
+            <td class="teams-cell">
+              <span v-if="user.teams && user.teams.length > 0" class="teams-count">
+                {{ user.teams.length }} team(s)
+              </span>
+              <span v-else class="no-teams">No teams</span>
+            </td>
+            <td class="actions-cell">
+              <button 
+                @click="toggleActive(user)" 
+                :class="user.isActive ? 'btn-deactivate' : 'btn-activate'"
+              >
+                {{ user.isActive ? 'Deactivate' : 'Activate' }}
+              </button>
+              <button @click="viewDetails(user)" class="btn-details">Details</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-if="allFilteredUsers.length === 0" class="no-data-message">
+      No users found
+    </div>
 
     <!-- User Details Modal -->
     <div v-if="selectedUser" class="modal-overlay" @click="selectedUser = null">
@@ -98,8 +110,8 @@
           </div>
           <div class="detail-row">
             <strong>Role:</strong>
-            <span class="role-badge" :class="'role-' + selectedUser.role">
-              {{ selectedUser.role }}
+            <span class="role-badge" :class="'role-' + (selectedUser.role?.name || selectedUser.role)">
+              {{ selectedUser.role?.name || selectedUser.role }}
             </span>
           </div>
           <div class="detail-row">
@@ -169,10 +181,61 @@ const filteredUsers = computed(() => {
   return result;
 });
 
+const allFilteredUsers = computed(() => filteredUsers.value);
+
+const groupSearchQueries = ref({
+  admin: '',
+  manager: '',
+  user: ''
+});
+
+const groupedUsers = computed(() => {
+  const groups = {
+    admin: [],
+    manager: [],
+    user: []
+  };
+
+  filteredUsers.value.forEach(user => {
+    const roleName = (user.role?.name || user.role).toLowerCase();
+    if (groups[roleName]) {
+      groups[roleName].push(user);
+    }
+  });
+
+  // Sort each group alphabetically by email
+  Object.keys(groups).forEach(role => {
+    groups[role].sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()));
+  });
+
+  // Return only non-empty groups in order: admin, manager, user
+  return ['admin', 'manager', 'user']
+    .filter(role => groups[role].length > 0)
+    .map(role => {
+      const allUsers = groups[role];
+      const searchQuery = groupSearchQueries.value[role];
+      
+      // Filter users within the group by search query
+      const filteredGroupUsers = searchQuery
+        ? allUsers.filter(user => 
+            user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (user.firstName && user.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (user.lastName && user.lastName.toLowerCase().includes(searchQuery.toLowerCase()))
+          )
+        : allUsers;
+      
+      return {
+        role: role.charAt(0).toUpperCase() + role.slice(1),
+        users: filteredGroupUsers,
+        filteredCount: filteredGroupUsers.length
+      };
+    });
+});
+
 const fetchUsers = async () => {
   const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5000/users', {
+    const response = await axios.get('http://localhost:5001/users', {
       headers: { Authorization: `Bearer ${token}` }
     });
     users.value = response.data;
@@ -188,7 +251,7 @@ const toggleActive = async (user) => {
   
   const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5000/users/${user.userId}`, {
+    await axios.put(`http://localhost:5001/users/${user.userId}`, {
       isActive: !user.isActive
     }, {
       headers: { Authorization: `Bearer ${token}` }
@@ -230,29 +293,32 @@ onMounted(fetchUsers);
 .search-input {
   flex: 1;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 14px;
+  background: var(--card-bg);
+  color: var(--text-primary);
 }
 
 .filter-select {
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 14px;
-  background: white;
+  background: var(--card-bg);
+  color: var(--text-primary);
 }
 
 .user-count {
   margin-bottom: 10px;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .user-table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
+  background: var(--card-bg);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
@@ -260,18 +326,18 @@ onMounted(fetchUsers);
 .user-table td {
   padding: 12px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .user-table th {
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .user-table tbody tr:hover {
-  background: #f9f9f9;
+  background: var(--hover-bg);
 }
 
 .user-table tbody tr.inactive {
@@ -280,12 +346,12 @@ onMounted(fetchUsers);
 
 .email-cell {
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .date-cell {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .teams-cell {
@@ -396,7 +462,7 @@ onMounted(fetchUsers);
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -404,7 +470,7 @@ onMounted(fetchUsers);
 }
 
 .modal-content {
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   max-width: 600px;
   width: 90%;
@@ -454,7 +520,7 @@ onMounted(fetchUsers);
 
 .detail-row strong {
   width: 150px;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -483,5 +549,42 @@ onMounted(fetchUsers);
 .team-item:hover {
   background: #2980b9;
   color: white;
+}
+
+.role-group {
+  margin-bottom: 40px;
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.role-header {
+  color: var(--text-primary);
+  font-size: 20px;
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border-color);
+  flex: 1;
+}
+
+.group-search-input {
+  width: 300px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.no-data-message {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  font-size: 16px;
 }
 </style>
