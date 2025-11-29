@@ -1682,14 +1682,14 @@ onBeforeUnmount(() => {
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 4px;
-  color: #333;
+  color: var(--text-primary);
   line-height: 1;
   font-weight: bold;
   position: relative;
 }
 
 .menu-btn:hover {
-  background: #f0f0f0;
+  background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
@@ -1982,7 +1982,7 @@ onBeforeUnmount(() => {
 .progress-percentage {
   font-size: 28px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-secondary);
 }
 
 .progress-bar-wrapper {
