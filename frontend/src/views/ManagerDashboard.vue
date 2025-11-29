@@ -280,9 +280,11 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import axios from 'axios';
 import { io } from 'socket.io-client';
 import { useRouter } from 'vue-router';
+import { apiGet, apiPut, apiDelete, API_BASE_URL } from '../utils/api';
+import { getUserId, getUsername } from '../utils/auth';
+import { formatDate, formatDateTime, formatStatus } from '../utils/formatters';
 
 const router = useRouter();
 let socket = null;
@@ -411,11 +413,8 @@ const calendarDays = computed(() => {
 
 // Methods
 const fetchProjects = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/projects', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/projects');
     projects.value = response.data;
     
     // Don't auto-select project - let user choose
@@ -453,11 +452,8 @@ const selectTeam = async (team) => {
 };
 
 const fetchProjectTasks = async (projectId) => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5001/projects/${projectId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet(`/projects/${projectId}`);
     
     allTasks.value = (response.data.tasks || []).map(task => ({
       ...task,
@@ -469,11 +465,8 @@ const fetchProjectTasks = async (projectId) => {
 };
 
 const fetchTeamMembers = async (teamId) => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5001/teams/${teamId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet(`/teams/${teamId}`);
     teamMembers.value = response.data.users || [];
   } catch (error) {
     console.error(error);
@@ -500,12 +493,9 @@ const changePriority = async (task) => {
   const currentIndex = priorities.indexOf(task.priority);
   const newPriority = priorities[(currentIndex + 1) % 3];
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}`, {
+    await apiPut(`/tasks/${task.taskId}`, {
       priority: newPriority
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     
     task.priority = newPriority;
@@ -521,12 +511,9 @@ const changeStatus = async (task) => {
   const currentIndex = statuses.indexOf(task.status);
   const newStatus = statuses[(currentIndex + 1) % 4];
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
+    await apiPut(`/tasks/${task.taskId}/status`, {
       status: newStatus
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     
     task.status = newStatus;
@@ -540,11 +527,8 @@ const changeStatus = async (task) => {
 const deleteTask = async (task) => {
   if (!confirm(`Delete task "${task.name}"?`)) return;
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5001/tasks/${task.taskId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await apiDelete(`/tasks/${task.taskId}`);
     
     allTasks.value = allTasks.value.filter(t => t.taskId !== task.taskId);
     activeMenu.value = null;
@@ -552,16 +536,6 @@ const deleteTask = async (task) => {
     console.error(error);
     alert('Error deleting task');
   }
-};
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'No deadline';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-const formatStatus = (status) => {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
 const previousMonth = () => {
@@ -600,10 +574,10 @@ const closeWhiteboard = () => {
 const connectWebSocket = () => {
   if (socket) return;
   
-  socket = io('http://localhost:5001');
+  socket = io(API_BASE_URL);
   
-  const userId = localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9);
-  const username = localStorage.getItem('username') || 'User';
+  const userId = getUserId() || 'user_' + Math.random().toString(36).substr(2, 9);
+  const username = getUsername() || 'User';
   
   socket.on('connect', () => {
     console.log('WebSocket connected');
@@ -734,12 +708,8 @@ const handleCanvasMouseMove = (e) => {
 const loadWhiteboard = async () => {
   if (!selectedProject.value) return;
   
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(
-      `http://localhost:5001/projects/${selectedProject.value.projectId}/whiteboard`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const response = await apiGet(`/projects/${selectedProject.value.projectId}/whiteboard`);
     
     canvasContext.value.clearRect(0, 0, whiteboardCanvas.value.width, whiteboardCanvas.value.height);
     
@@ -887,12 +857,6 @@ const restoreDrawing = (entry) => {
   };
   img.src = entry.imageData;
   showHistory.value = false;
-};
-
-const formatDateTime = (timestamp) => {
-  if (!timestamp) return '';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleString();
 };
 
 onMounted(() => {

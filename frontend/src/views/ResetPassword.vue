@@ -12,6 +12,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { API_BASE_URL } from '../utils/api';
 import axios from 'axios';
 
 const router = useRouter();
@@ -22,7 +23,7 @@ const requestReset = async () => {
   
   // First, check if user exists
   try {
-    const response = await axios.post('http://localhost:5001/reset-password', {
+    const response = await axios.post(`${API_BASE_URL}/reset-password`, {
       email: userEmail
     });
     
@@ -36,7 +37,7 @@ const requestReset = async () => {
         
         if (newPassword === confirmPassword) {
           // Update password
-          await axios.post('http://localhost:5001/update-password', {
+          await axios.post(`${API_BASE_URL}/update-password`, {
             email: userEmail,
             newPassword: newPassword
           });

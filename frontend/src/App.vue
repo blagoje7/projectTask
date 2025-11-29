@@ -27,14 +27,16 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { getUserRole, clearAuthData } from './utils/auth';
+import { isAdmin, isManager } from './utils/auth';
 
 const router = useRouter();
 const route = useRoute();
-const role = ref(localStorage.getItem('role'));
+const role = ref(getUserRole());
 const isDarkMode = ref(localStorage.getItem('theme') === 'dark');
 
 watch(route, () => {
-  role.value = localStorage.getItem('role');
+  role.value = getUserRole();
 });
 
 const toggleTheme = () => {
@@ -44,8 +46,7 @@ const toggleTheme = () => {
 };
 
 const logout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
+  clearAuthData();
   router.push('/login');
 };
 

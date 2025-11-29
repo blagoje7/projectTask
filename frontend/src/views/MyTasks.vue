@@ -236,7 +236,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import { apiGet, apiPut } from '../utils/api';
+import { formatDate, formatStatus } from '../utils/formatters';
 
 const router = useRouter();
 const tasks = ref([]);
@@ -268,11 +269,8 @@ const filteredTasks = computed(() => {
 });
 
 const fetchMyTasks = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/tasks/my-tasks', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/tasks/my-tasks');
     tasks.value = response.data;
   } catch (error) {
     console.error(error);
@@ -281,12 +279,9 @@ const fetchMyTasks = async () => {
 };
 
 const updateStatus = async (task) => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
+    await apiPut(`/tasks/${task.taskId}/status`, {
       status: task.status
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     alert('Status updated successfully');
   } catch (error) {
@@ -300,20 +295,9 @@ const viewProject = (projectId) => {
   router.push(`/projects/${projectId}`);
 };
 
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'N/A';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString();
-};
-
 const isOverdue = (timestamp) => {
   if (!timestamp) return false;
   return timestamp < Math.floor(Date.now() / 1000);
-};
-
-const formatStatus = (status) => {
-  if (!status) return 'N/A';
-  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
 const toggleMenu = (taskId) => {
@@ -330,12 +314,8 @@ const viewAssignedUsers = async (task) => {
   selectedTask.value = task;
   activeMenu.value = null;
   
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(
-      `http://localhost:5001/tasks/${task.taskId}/users`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const response = await apiGet(`/tasks/${task.taskId}/users`);
     assignedUsers.value = response.data;
     showUsersModal.value = true;
   } catch (error) {
@@ -352,13 +332,10 @@ const changePriority = (task) => {
 };
 
 const savePriority = async () => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(
-      `http://localhost:5001/tasks/${selectedTask.value.taskId}`,
-      { priority: newPriority.value },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    await apiPut(`/tasks/${selectedTask.value.taskId}`, {
+      priority: newPriority.value
+    });
     selectedTask.value.priority = newPriority.value;
     showPriorityModal.value = false;
     fetchMyTasks();
@@ -382,15 +359,12 @@ const changeDeadline = (task) => {
 };
 
 const saveDeadline = async () => {
-  const token = localStorage.getItem('token');
   const deadlineTimestamp = newDeadline.value ? Math.floor(new Date(newDeadline.value).getTime() / 1000) : null;
   
   try {
-    await axios.put(
-      `http://localhost:5001/tasks/${selectedTask.value.taskId}`,
-      { deadline: deadlineTimestamp },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    await apiPut(`/tasks/${selectedTask.value.taskId}`, {
+      deadline: deadlineTimestamp
+    });
     selectedTask.value.deadline = deadlineTimestamp;
     showDeadlineModal.value = false;
     fetchMyTasks();

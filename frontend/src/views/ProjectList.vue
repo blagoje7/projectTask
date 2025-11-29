@@ -43,20 +43,18 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import { apiGet } from '../utils/api';
+import { getUserRole, isAdmin as checkIsAdmin, isAdminOrManager } from '../utils/auth';
 
 const router = useRouter();
 const projects = ref([]);
-const role = computed(() => localStorage.getItem('role'));
-const isAdmin = computed(() => role.value === 'admin');
-const isManager = computed(() => role.value === 'manager' || role.value === 'admin');
+const role = computed(() => getUserRole());
+const isAdmin = computed(() => checkIsAdmin());
+const isManager = computed(() => isAdminOrManager());
 
 const fetchProjects = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/projects', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/projects');
     projects.value = response.data;
   } catch (error) {
     console.error(error);

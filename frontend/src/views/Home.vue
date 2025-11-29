@@ -453,16 +453,18 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import axios from 'axios';
 import { io } from 'socket.io-client';
 import { useRouter } from 'vue-router';
+import { apiGet, apiPut, apiDelete, API_BASE_URL } from '../utils/api';
+import { getUserRole, getUsername, getUserId } from '../utils/auth';
+import { formatDate, formatStatus } from '../utils/formatters';
 
 const router = useRouter();
 let socket = null;
 
 // User role
-const userRole = ref(localStorage.getItem('role'));
-const userName = ref(localStorage.getItem('username') || 'User');
+const userRole = ref(getUserRole());
+const userName = ref(getUsername() || 'User');
 
 // State
 const projects = ref([]);
@@ -644,10 +646,8 @@ const calendarDays = computed(() => {
 
 // Methods
 const fetchProjects = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/projects', {
-      headers: { Authorization: `Bearer ${token}` }
+    const response = await apiGet('/projects');
     });
     projects.value = response.data;
     
@@ -695,11 +695,8 @@ const selectTeam = async (team) => {
 };
 
 const fetchProjectTasks = async (projectId) => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5001/projects/${projectId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet(`/projects/${projectId}`);
     
     allTasks.value = (response.data.tasks || []).map(task => ({
       ...task,
@@ -711,11 +708,8 @@ const fetchProjectTasks = async (projectId) => {
 };
 
 const fetchTeamMembers = async (teamId) => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5001/teams/${teamId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet(`/teams/${teamId}`);
     teamMembers.value = response.data.users || [];
   } catch (error) {
     console.error(error);
@@ -803,20 +797,17 @@ const editTask = (task) => {
 };
 
 const saveTaskEdit = async () => {
-  const token = localStorage.getItem('token');
   const deadlineTimestamp = editingTask.value.deadlineDate 
     ? Math.floor(new Date(editingTask.value.deadlineDate).getTime() / 1000) 
     : null;
 
   try {
-    await axios.put(`http://localhost:5001/tasks/${editingTask.value.taskId}`, {
+    await apiPut(`/tasks/${editingTask.value.taskId}`, {
       name: editingTask.value.name,
       description: editingTask.value.description,
       priority: editingTask.value.priority,
       status: editingTask.value.status,
       deadline: deadlineTimestamp
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
 
     // Update the task in the list
@@ -841,12 +832,9 @@ const saveTaskEdit = async () => {
 };
 
 const updateTaskPriority = async (task, priority) => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}`, {
+    await apiPut(`/tasks/${task.taskId}`, {
       priority
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     
     task.priority = priority;
@@ -859,12 +847,9 @@ const updateTaskPriority = async (task, priority) => {
 };
 
 const updateTaskStatus = async (task, status) => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
+    await apiPut(`/tasks/${task.taskId}/status`, {
       status
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     
     task.status = status;
@@ -881,12 +866,9 @@ const changePriority = async (task) => {
   const currentIndex = priorities.indexOf(task.priority);
   const newPriority = priorities[(currentIndex + 1) % 3];
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}`, {
+    await apiPut(`/tasks/${task.taskId}`, {
       priority: newPriority
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     
     task.priority = newPriority;
@@ -902,12 +884,9 @@ const changeStatus = async (task) => {
   const currentIndex = statuses.indexOf(task.status);
   const newStatus = statuses[(currentIndex + 1) % 4];
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
+    await apiPut(`/tasks/${task.taskId}/status`, {
       status: newStatus
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     
     task.status = newStatus;
@@ -921,11 +900,8 @@ const changeStatus = async (task) => {
 const deleteTask = async (task) => {
   if (!confirm(`Delete task "${task.name}"?`)) return;
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5001/tasks/${task.taskId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await apiDelete(`/tasks/${task.taskId}`);
     
     allTasks.value = allTasks.value.filter(t => t.taskId !== task.taskId);
     activeMenu.value = null;
@@ -940,11 +916,8 @@ const selectUser = (user) => {
 };
 
 const viewTaskAssignees = async (task) => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5001/tasks/${task.taskId}/assignees`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet(`/tasks/${task.taskId}/assignees`);
     taskAssignees.value = response.data;
     showAssigneesModal.value = true;
     activeMenu.value = null;
@@ -957,12 +930,9 @@ const viewTaskAssignees = async (task) => {
 const setTaskForReview = async (task) => {
   if (!confirm(`Set task "${task.name}" for review?`)) return;
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${task.taskId}/status`, {
+    await apiPut(`/tasks/${task.taskId}/status`, {
       status: 'for_review'
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     
     task.status = 'for_review';
@@ -972,16 +942,6 @@ const setTaskForReview = async (task) => {
     console.error(error);
     alert('Error setting task for review');
   }
-};
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'No deadline';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-const formatStatus = (status) => {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
 const previousMonth = () => {
@@ -1020,10 +980,10 @@ const closeWhiteboard = () => {
 const connectWebSocket = () => {
   if (socket) return;
   
-  socket = io('http://localhost:5001');
+  socket = io(API_BASE_URL);
   
-  const userId = localStorage.getItem('userId');
-  const username = localStorage.getItem('username') || 'User';
+  const userId = getUserId();
+  const username = getUsername() || 'User';
   
   socket.on('connect', () => {
     console.log('WebSocket connected');
@@ -1145,8 +1105,8 @@ const handleCanvasMouseMove = (e) => {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   
-  const userId = localStorage.getItem('userId');
-  const username = localStorage.getItem('username') || 'User';
+  const userId = getUserId();
+  const username = getUsername() || 'User';
   
   socket.emit('cursor_move', {
     projectId: selectedProject.value.projectId,
@@ -1159,12 +1119,8 @@ const handleCanvasMouseMove = (e) => {
 const loadWhiteboard = async () => {
   if (!selectedProject.value) return;
   
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(
-      `http://localhost:5001/projects/${selectedProject.value.projectId}/whiteboard`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const response = await apiGet(`/projects/${selectedProject.value.projectId}/whiteboard`);
     
     canvasContext.value.clearRect(0, 0, whiteboardCanvas.value.width, whiteboardCanvas.value.height);
     
@@ -1228,8 +1184,8 @@ const stopDrawing = () => {
   
   // Emit stroke to other users via WebSocket
   if (socket && selectedProject.value && currentStroke.value.length > 0) {
-    const userId = localStorage.getItem('userId');
-    const username = localStorage.getItem('username') || 'User';
+    const userId = getUserId();
+    const username = getUsername() || 'User';
     
     socket.emit('draw', {
       projectId: selectedProject.value.projectId,
@@ -1250,8 +1206,8 @@ const stopDrawing = () => {
 const saveWhiteboardToServer = async () => {
   if (!selectedProject.value || !socket) return;
   
-  const userId = localStorage.getItem('userId');
-  const username = localStorage.getItem('username') || 'User';
+  const userId = getUserId();
+  const username = getUsername() || 'User';
   const imageData = whiteboardCanvas.value.toDataURL();
   
   // Save via WebSocket (which now saves to database)

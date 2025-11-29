@@ -146,7 +146,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
+import { apiGet, apiPut } from '../utils/api';
 
 const users = ref([]);
 const selectedUser = ref(null);
@@ -233,11 +233,8 @@ const groupedUsers = computed(() => {
 });
 
 const fetchUsers = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/users', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/users');
     users.value = response.data;
   } catch (error) {
     console.error(error);
@@ -249,12 +246,9 @@ const toggleActive = async (user) => {
   const action = user.isActive ? 'deactivate' : 'activate';
   if (!confirm(`Are you sure you want to ${action} ${user.email}?`)) return;
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/users/${user.userId}`, {
+    await apiPut(`/users/${user.userId}`, {
       isActive: !user.isActive
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     alert(`User ${action}d successfully!`);
     fetchUsers();

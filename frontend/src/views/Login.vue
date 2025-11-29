@@ -37,8 +37,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import axios from 'axios';
 import { useRouter } from 'vue-router';
+import { API_BASE_URL } from '../utils/api';
+import { setAuthData } from '../utils/auth';
+import axios from 'axios';
 
 const email = ref('');
 const password = ref('');
@@ -46,14 +48,16 @@ const router = useRouter();
 
 const login = async () => {
   try {
-    const response = await axios.post('http://localhost:5001/login', {
+    const response = await axios.post(`${API_BASE_URL}/login`, {
       email: email.value,
       password: password.value
     });
-    localStorage.setItem('token', response.data.access_token);
-    localStorage.setItem('role', response.data.role);
-    localStorage.setItem('userId', response.data.userId);
-    localStorage.setItem('username', response.data.username);
+    setAuthData(
+      response.data.access_token,
+      response.data.role,
+      response.data.userId,
+      response.data.username
+    );
     router.push('/');
   } catch (error) {
     console.error('Login error:', error);

@@ -84,7 +84,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
+import { apiGet, apiPost, apiDelete } from '../utils/api';
 import { useRoute } from 'vue-router';
 
 const route = useRoute();
@@ -149,11 +149,8 @@ const groupedCurrentMembers = computed(() => {
 });
 
 const fetchTeam = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5001/teams/${route.params.id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet(`/teams/${route.params.id}`);
     team.value = response.data;
   } catch (error) {
     console.error(error);
@@ -162,11 +159,8 @@ const fetchTeam = async () => {
 };
 
 const fetchAllUsers = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/users', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/users');
     allUsers.value = response.data;
   } catch (error) {
     console.error('Error loading users:', error);
@@ -179,12 +173,9 @@ const addMember = async () => {
     return;
   }
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.post(`http://localhost:5001/teams/${route.params.id}/users`, {
+    await apiPost(`/teams/${route.params.id}/users`, {
       email: newMemberEmail.value
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     newMemberEmail.value = '';
     alert('Member added successfully!');
@@ -198,11 +189,9 @@ const addMember = async () => {
 const removeMember = async (email) => {
   if (!confirm(`Remove ${email} from this team?`)) return;
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5001/teams/${route.params.id}/users`, {
-      data: { email },
-      headers: { Authorization: `Bearer ${token}` }
+    await apiDelete(`/teams/${route.params.id}/users`, {
+      email
     });
     alert('Member removed successfully!');
     await fetchTeam();

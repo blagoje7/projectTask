@@ -80,7 +80,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import axios from 'axios';
+import { apiGet, apiPost } from '../utils/api';
 
 const router = useRouter();
 const route = useRoute();
@@ -99,12 +99,9 @@ const task = ref({
 });
 
 const fetchProjectData = async () => {
-  const token = localStorage.getItem('token');
   try {
     // Fetch project to get epics
-    const projectResponse = await axios.get(`http://localhost:5001/projects/${projectId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const projectResponse = await apiGet(`/projects/${projectId}`);
     epics.value = projectResponse.data.epics || [];
 
     // Fetch team members from all teams assigned to the project
@@ -113,9 +110,7 @@ const fetchProjectData = async () => {
     const members = [];
 
     for (const team of teams) {
-      const teamResponse = await axios.get(`http://localhost:5001/teams/${team.teamId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const teamResponse = await apiGet(`/teams/${team.teamId}`);
       
       for (const member of teamResponse.data.users || []) {
         if (!memberSet.has(member.userId)) {
@@ -140,7 +135,6 @@ const submitTask = async () => {
     return;
   }
 
-  const token = localStorage.getItem('token');
   const payload = {
     name: task.value.name,
     description: task.value.description || '',
@@ -158,9 +152,7 @@ const submitTask = async () => {
   }
 
   try {
-    await axios.post(`http://localhost:5001/projects/${projectId}/tasks`, payload, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await apiPost(`/projects/${projectId}/tasks`, payload);
     alert('Task created successfully');
     router.push(`/projects/${projectId}`);
   } catch (error) {

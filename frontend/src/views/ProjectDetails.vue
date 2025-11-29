@@ -206,7 +206,9 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api';
+import { getUserRole, isAdminOrManager } from '../utils/auth';
+import { formatDate, formatStatus } from '../utils/formatters';
 
 const route = useRoute();
 const router = useRouter();
@@ -223,15 +225,12 @@ const showTeamModal = ref(false);
 const allTeams = ref([]);
 const selectedTeamIds = ref([]);
 
-const role = computed(() => localStorage.getItem('role'));
-const isManager = computed(() => role.value === 'manager' || role.value === 'admin');
+const role = computed(() => getUserRole());
+const isManager = computed(() => isAdminOrManager());
 
 const fetchProject = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get(`http://localhost:5001/projects/${projectId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet(`/projects/${projectId}`);
     project.value = response.data;
     tasks.value = response.data.tasks || [];
     epics.value = response.data.epics || [];
@@ -243,11 +242,8 @@ const fetchProject = async () => {
 };
 
 const createEpic = async () => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.post(`http://localhost:5001/projects/${projectId}/epics`, newEpic.value, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await apiPost(`/projects/${projectId}/epics`, newEpic.value);
     showCreateEpic.value = false;
     newEpic.value = { name: '', description: '' };
     fetchProject();
@@ -259,11 +255,8 @@ const createEpic = async () => {
 
 const deleteEpic = async (epicId) => {
   if (!confirm('Delete this epic?')) return;
-  const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5001/epics/${epicId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await apiDelete(`/epics/${epicId}`);
     fetchProject();
   } catch (error) {
     console.error(error);
@@ -273,11 +266,8 @@ const deleteEpic = async (epicId) => {
 
 const deleteTask = async (taskId) => {
   if (!confirm('Delete this task?')) return;
-  const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5001/tasks/${taskId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await apiDelete(`/tasks/${taskId}`);
     fetchProject();
   } catch (error) {
     console.error(error);
@@ -290,12 +280,9 @@ const viewTask = (task) => {
 };
 
 const updateTaskStatus = async () => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/tasks/${selectedTask.value.taskId}/status`, {
+    await apiPut(`/tasks/${selectedTask.value.taskId}/status`, {
       status: selectedTask.value.status
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     fetchProject();
     alert('Status updated');
@@ -305,16 +292,9 @@ const updateTaskStatus = async () => {
   }
 };
 
-const formatStatus = (status) => {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-};
-
 const fetchAllTeams = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/teams', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/teams');
     allTeams.value = response.data;
   } catch (error) {
     console.error(error);
@@ -335,14 +315,11 @@ const toggleTeam = (teamId) => {
 };
 
 const saveTeams = async () => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.put(`http://localhost:5001/projects/${projectId}`, {
+    await apiPut(`/projects/${projectId}`, {
       name: project.value.name,
       description: project.value.description,
       teamIds: selectedTeamIds.value
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     showTeamModal.value = false;
     fetchProject();
@@ -351,12 +328,6 @@ const saveTeams = async () => {
     console.error(error);
     alert('Error updating teams');
   }
-};
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'N/A';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString();
 };
 
 onMounted(() => {

@@ -55,7 +55,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import { apiGet, apiPost } from '../utils/api';
 
 const router = useRouter();
 const name = ref('');
@@ -64,11 +64,8 @@ const selectedTeamIds = ref([]);
 const availableTeams = ref([]);
 
 const fetchTeams = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/teams', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/teams');
     availableTeams.value = response.data;
   } catch (error) {
     console.error(error);
@@ -77,14 +74,11 @@ const fetchTeams = async () => {
 };
 
 const createProject = async () => {
-  const token = localStorage.getItem('token');
   try {
-    await axios.post('http://localhost:5001/projects', {
+    await apiPost('/projects', {
       name: name.value,
       description: description.value,
       teamIds: selectedTeamIds.value
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     alert('Project created successfully!');
     router.push('/projects');

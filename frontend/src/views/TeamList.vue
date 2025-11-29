@@ -30,17 +30,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import { apiGet, apiPost, apiDelete } from '../utils/api';
 
 const teams = ref([]);
 const newTeamName = ref('');
 
 const fetchTeams = async () => {
-  const token = localStorage.getItem('token');
   try {
-    const response = await axios.get('http://localhost:5001/teams', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiGet('/teams');
     teams.value = response.data;
   } catch (error) {
     console.error(error);
@@ -54,12 +51,9 @@ const createTeam = async () => {
     return;
   }
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.post('http://localhost:5001/teams', {
+    await apiPost('/teams', {
       name: newTeamName.value
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     newTeamName.value = '';
     alert('Team created successfully!');
@@ -73,11 +67,8 @@ const createTeam = async () => {
 const deleteTeam = async (id) => {
   if (!confirm('Are you sure you want to delete this team?')) return;
   
-  const token = localStorage.getItem('token');
   try {
-    await axios.delete(`http://localhost:5001/teams/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await apiDelete(`/teams/${id}`);
     alert('Team deleted successfully!');
     fetchTeams();
   } catch (error) {

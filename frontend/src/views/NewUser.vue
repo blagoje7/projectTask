@@ -19,7 +19,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import axios from 'axios';
+import { apiPost } from '../utils/api';
 
 const email = ref('');
 const firstName = ref('');
@@ -29,15 +29,12 @@ const role = ref('user');
 
 const createUser = async () => {
   try {
-    const token = localStorage.getItem('token');
-    await axios.post('http://localhost:5001/users', {
+    await apiPost('/users', {
       email: email.value,
       firstName: firstName.value,
       lastName: lastName.value,
       password: password.value,
       role: role.value
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
     });
     alert('User created');
   } catch (error) {
