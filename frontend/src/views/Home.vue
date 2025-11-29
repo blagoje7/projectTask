@@ -648,7 +648,6 @@ const calendarDays = computed(() => {
 const fetchProjects = async () => {
   try {
     const response = await apiGet('/projects');
-    });
     projects.value = response.data;
     
     // Don't auto-select project - let user choose
