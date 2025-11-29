@@ -6,14 +6,15 @@
     <aside class="left-sidebar">
       <div class="sidebar-section">
         <h3>Projects</h3>
+        <input v-model="projectSearchQuery" placeholder="Filter projects..." class="sidebar-search" />
         <div class="project-list">
           <div
-            v-for="project in projects"
+            v-for="project in filteredProjects"
             :key="project.projectId"
             :class="['project-item', { active: selectedProject?.projectId === project.projectId }]"
           >
             <div class="project-main" @click="selectProject(project)">
-              <span class="project-indicator"></span>
+              <span class="project-indicator" :class="{ active: selectedProject?.projectId === project.projectId }"></span>
               {{ project.name }}
             </div>
             <button @click.stop="toggleProjectMenu(project.projectId)" class="project-menu-btn">⋯</button>
@@ -27,24 +28,33 @@
 
       <div class="sidebar-section" v-if="selectedProject">
         <h3>Teams</h3>
+        <input v-model="teamSearchQuery" placeholder="Filter teams..." class="sidebar-search" />
         <div class="team-list">
           <div
-            v-for="team in currentTeams"
+            v-for="team in filteredTeams"
             :key="team.teamId"
             :class="['team-item', { active: selectedTeam?.teamId === team.teamId }]"
-            @click="selectTeam(team)"
           >
-            {{ team.name }}
+            <div class="team-main" @click="selectTeam(team)">
+              <span class="team-indicator" :class="{ active: selectedTeam?.teamId === team.teamId }"></span>
+              {{ team.name }}
+            </div>
+            <button v-if="userRole === 'admin' || userRole === 'manager'" @click.stop="toggleTeamMenu(team.teamId)" class="team-menu-btn">⋯</button>
+            <div v-if="activeTeamMenu === team.teamId" class="team-context-menu">
+              <div @click="manageTeam(team)" class="menu-item">⚙️ Manage Team</div>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="sidebar-section" v-if="selectedTeam">
         <h3>Team Members</h3>
+        <input v-model="memberSearchQuery" placeholder="Filter members..." class="sidebar-search" />
         <div class="member-list">
-          <div v-for="member in teamMembers" :key="member.userId" 
+          <div v-for="member in filteredMembers" :key="member.userId" 
                :class="['member-item', { active: selectedUser?.userId === member.userId }]"
                @click="selectUser(member)">
+            <span class="member-indicator" :class="{ active: selectedUser?.userId === member.userId }"></span>
             <div class="member-avatar">{{ member.firstName[0] }}{{ member.lastName[0] }}</div>
             <span>{{ member.firstName }} {{ member.lastName }}</span>
           </div>
@@ -94,7 +104,7 @@
         
         <div v-else class="tasks-toolbar">
           <div class="search-filter">
-            <input type="text" v-model="searchQuery" placeholder="Search tickets..." />
+            <input type="text" v-model="searchQuery" placeholder="Search tasks..." />
             <button class="filter-btn">
               <span>Filter</span>
             </button>
@@ -457,6 +467,7 @@ const userName = ref(localStorage.getItem('username') || 'User');
 // State
 const projects = ref([]);
 const activeProjectMenu = ref(null);
+const activeTeamMenu = ref(null);
 const selectedProject = ref(null);
 const currentTeams = ref([]);
 const selectedTeam = ref(null);
@@ -464,6 +475,9 @@ const teamMembers = ref([]);
 const allTasks = ref([]);
 const viewMode = ref('list');
 const searchQuery = ref('');
+const projectSearchQuery = ref('');
+const teamSearchQuery = ref('');
+const memberSearchQuery = ref('');
 const activeMenu = ref(null);
 const currentMenuTask = ref(null);
 const showSubmenu = ref(null);
@@ -494,6 +508,40 @@ const currentYear = ref(new Date().getFullYear());
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Computed
+const filteredProjects = computed(() => {
+  let sorted = [...projects.value].sort((a, b) => a.name.localeCompare(b.name));
+  if (projectSearchQuery.value) {
+    const query = projectSearchQuery.value.toLowerCase();
+    sorted = sorted.filter(p => p.name.toLowerCase().includes(query));
+  }
+  return sorted;
+});
+
+const filteredTeams = computed(() => {
+  let sorted = [...currentTeams.value].sort((a, b) => a.name.localeCompare(b.name));
+  if (teamSearchQuery.value) {
+    const query = teamSearchQuery.value.toLowerCase();
+    sorted = sorted.filter(t => t.name.toLowerCase().includes(query));
+  }
+  return sorted;
+});
+
+const filteredMembers = computed(() => {
+  let sorted = [...teamMembers.value].sort((a, b) => {
+    const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+    const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+  if (memberSearchQuery.value) {
+    const query = memberSearchQuery.value.toLowerCase();
+    sorted = sorted.filter(m => 
+      `${m.firstName} ${m.lastName}`.toLowerCase().includes(query) ||
+      m.email.toLowerCase().includes(query)
+    );
+  }
+  return sorted;
+});
+
 const filteredTasks = computed(() => {
   let tasks = allTasks.value;
   
@@ -622,6 +670,10 @@ const toggleProjectMenu = (projectId) => {
   activeProjectMenu.value = activeProjectMenu.value === projectId ? null : projectId;
 };
 
+const toggleTeamMenu = (teamId) => {
+  activeTeamMenu.value = activeTeamMenu.value === teamId ? null : teamId;
+};
+
 const viewMyTasks = (project) => {
   activeProjectMenu.value = null;
   router.push('/my-tasks');
@@ -630,6 +682,11 @@ const viewMyTasks = (project) => {
 const viewProjectDetails = (project) => {
   activeProjectMenu.value = null;
   router.push(`/projects/${project.projectId}`);
+};
+
+const manageTeam = (team) => {
+  activeTeamMenu.value = null;
+  router.push(`/teams/${team.teamId}`);
 };
 
 const selectTeam = async (team) => {
@@ -1309,6 +1366,21 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 
+.sidebar-search {
+  width: 100%;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.sidebar-search::placeholder {
+  color: var(--text-secondary);
+}
+
 .project-list,
 .team-list {
   display: flex;
@@ -1337,7 +1409,15 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-.project-menu-btn {
+.team-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.project-menu-btn,
+.team-menu-btn {
   background: none;
   border: none;
   font-size: 18px;
@@ -1348,15 +1428,19 @@ onBeforeUnmount(() => {
   transition: opacity 0.2s;
 }
 
-.project-item:hover .project-menu-btn {
+.project-item:hover .project-menu-btn,
+.team-item:hover .team-menu-btn {
   opacity: 1;
+  color: var(--text-secondary)
 }
 
-.project-menu-btn:hover {
+.project-menu-btn:hover,
+.team-menu-btn:hover {
   color: var(--text-primary);
 }
 
-.project-context-menu {
+.project-context-menu,
+.team-context-menu {
   position: absolute;
   top: 100%;
   right: 0;
@@ -1369,7 +1453,8 @@ onBeforeUnmount(() => {
   margin-top: 4px;
 }
 
-.project-context-menu .menu-item {
+.project-context-menu .menu-item,
+.team-context-menu .menu-item {
   padding: 10px 16px;
   cursor: pointer;
   transition: background 0.2s;
@@ -1377,12 +1462,25 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.project-context-menu .menu-item:hover {
+.project-context-menu .menu-item:hover,
+.team-context-menu .menu-item:hover {
   background: var(--bg-secondary);
 }
 
-.project-context-menu .menu-item:first-child {
+.project-context-menu .menu-item:first-child,
+.team-context-menu .menu-item:first-child {
   border-radius: 6px 6px 0 0;
+}
+
+.project-context-menu .menu-item:last-child,
+.team-context-menu .menu-item:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.project-item.active,
+.team-item.active {
+  background: #000;
+  color: white;
 }
 
 .project-context-menu .menu-item:last-child {
@@ -1404,10 +1502,27 @@ onBeforeUnmount(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ccc;
+  background: #666;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 
-.project-item.active .project-indicator {
+.project-indicator.active {
+  background: #4caf50;
+}
+
+.team-indicator,
+.member-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.team-indicator.active,
+.member-indicator.active {
   background: #4caf50;
 }
 
@@ -1483,7 +1598,7 @@ onBeforeUnmount(() => {
 .empty-project-state h2 {
   font-size: 24px;
   margin: 0 0 10px 0;
-  color: #333;
+  color: var(--text-secondary);
 }
 
 .empty-project-state p {
@@ -1593,7 +1708,7 @@ onBeforeUnmount(() => {
 }
 
 .task-row:hover {
-  background: #fafafa;
+  background: var(--hover-bg);
 }
 
 .tasks-table td {
@@ -1608,6 +1723,7 @@ onBeforeUnmount(() => {
 
 .task-title {
   font-weight: 500;
+  color: var(--text-primary);
 }
 
 .task-project {
@@ -1690,7 +1806,7 @@ onBeforeUnmount(() => {
 
 .menu-btn:hover {
   background: var(--bg-secondary);
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .context-menu {
