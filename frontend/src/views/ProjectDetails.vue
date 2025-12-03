@@ -61,40 +61,14 @@
       </div>
 
       <div class="tasks-list">
-        <div v-for="task in tasks" :key="task.taskId" class="task-item">
-          <div class="task-header">
-            <h3>{{ task.name }}</h3>
-            <span class="priority-badge" :class="'priority-' + task.priority">
-              {{ task.priority }}
-            </span>
-          </div>
-          
-          <p class="task-description">{{ task.description || 'No description' }}</p>
-          
-          <div class="task-meta">
-            <span v-if="task.epicName" class="epic-tag">{{ task.epicName }}</span>
-            <span class="status-badge" :class="'status-' + task.status">
-              {{ formatStatus(task.status) }}
-            </span>
-            <span v-if="task.deadline" class="deadline">
-              Due: {{ formatDate(task.deadline) }}
-            </span>
-            <span class="assignees">
-              {{ task.assignees.length }} assignee(s)
-            </span>
-          </div>
-
-          <div class="task-actions">
-            <button @click="viewTask(task)" class="btn-view">View</button>
-            <button 
-              v-if="isManager" 
-              @click="deleteTask(task.taskId)"
-              class="btn-delete"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
+        <TaskCard 
+          v-for="task in tasks" 
+          :key="task.taskId" 
+          :task="task" 
+          :is-manager="isManager"
+          @view="viewTask"
+          @delete="deleteTask"
+        />
       </div>
     </div>
 
@@ -209,6 +183,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api';
 import { getUserRole, isAdminOrManager } from '../utils/auth';
 import { formatDate, formatStatus } from '../utils/formatters';
+import TaskCard from '../components/TaskCard.vue';
 
 const route = useRoute();
 const router = useRouter();
