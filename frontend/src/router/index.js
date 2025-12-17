@@ -2,11 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Home from '../views/Home.vue';
 import Login from '../views/Login.vue';
 import NewUser from '../views/NewUser.vue';
-import Project from '../views/Project.vue';
-import ProjectTask from '../views/ProjectTask.vue';
-import ProjectUser from '../views/ProjectUser.vue';
-import ProjectDashboard from '../views/ProjectDashboard.vue';
-import TaskDashboard from '../views/TaskDashboard.vue';
 import ResetPassword from '../views/ResetPassword.vue';
 import UserList from '../views/UserList.vue';
 import TeamList from '../views/TeamList.vue';
@@ -69,31 +64,6 @@ const routes = [
   { 
     path: '/my-tasks', 
     component: MyTasks,
-    meta: { requiresAuth: true }
-  },
-  { 
-    path: '/project', 
-    component: Project,
-    meta: { requiresAuth: true }
-  },
-  { 
-    path: '/project/task', 
-    component: ProjectTask,
-    meta: { requiresAuth: true }
-  },
-  { 
-    path: '/project/user/:id', 
-    component: ProjectUser,
-    meta: { requiresAuth: true, role: 'manager' }
-  },
-  { 
-    path: '/projectdashboard', 
-    component: ProjectDashboard,
-    meta: { requiresAuth: true }
-  },
-  { 
-    path: '/taskdashboard', 
-    component: TaskDashboard,
     meta: { requiresAuth: true }
   },
 ];

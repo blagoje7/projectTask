@@ -147,6 +147,7 @@
                 <th>Priority</th>
                 <th>Status</th>
                 <th>Date</th>
+                <th>Assignees</th>
               </tr>
             </thead>
             <tbody>
@@ -168,6 +169,22 @@
                   </span>
                 </td>
                 <td class="task-date">{{ formatDate(task.deadline) }}</td>
+                <td class="task-assignees">
+                  <div class="assignees-dropdown-container table-dropdown">
+                    <div class="assignees-trigger" @click.stop="toggleAssigneesDropdown(task.taskId)">
+                      {{ task.assignees ? task.assignees.length : 0 }} ▼
+                    </div>
+                    <div v-if="showAssigneesDropdown === task.taskId" class="assignees-dropdown-list right-aligned">
+                      <div v-if="!task.assignees || task.assignees.length === 0" class="empty-assignees">
+                        No assignees
+                      </div>
+                      <div v-else v-for="assignee in task.assignees" :key="assignee.userId" class="assignee-list-item">
+                        <div class="assignee-avatar-small">{{ assignee.firstName[0] }}{{ assignee.lastName[0] }}</div>
+                        <span>{{ assignee.firstName }} {{ assignee.lastName }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -216,6 +233,23 @@
             </div>
             <h4>{{ task.name }}</h4>
             <p>{{ task.description || 'No description' }}</p>
+            
+            <!-- Assignees Dropdown -->
+            <div class="assignees-dropdown-container">
+              <div class="assignees-trigger" @click.stop="toggleAssigneesDropdown(task.taskId)">
+                Assignees ({{ task.assignees ? task.assignees.length : 0 }}) ▼
+              </div>
+              <div v-if="showAssigneesDropdown === task.taskId" class="assignees-dropdown-list">
+                <div v-if="!task.assignees || task.assignees.length === 0" class="empty-assignees">
+                  No assignees
+                </div>
+                <div v-else v-for="assignee in task.assignees" :key="assignee.userId" class="assignee-list-item">
+                  <div class="assignee-avatar-small">{{ assignee.firstName[0] }}{{ assignee.lastName[0] }}</div>
+                  <span>{{ assignee.firstName }} {{ assignee.lastName }}</span>
+                </div>
+              </div>
+            </div>
+
             <div class="card-footer">
               <span :class="['priority-badge', 'priority-' + task.priority]">
                 {{ task.priority }}
@@ -281,46 +315,6 @@
           </div>
         </div>
       </div>
-
-      <button @click="openWhiteboard" class="btn-whiteboard">
-        🎨 Open Whiteboard
-      </button>
-    </div>
-
-    <!-- Whiteboard Modal -->
-    <div v-if="showWhiteboard" class="modal-overlay" @click.self="closeWhiteboard">
-      <div class="whiteboard-modal">
-        <div class="whiteboard-modal-header">
-          <h2>{{ selectedProject.name }} - Whiteboard</h2>
-          <button @click="closeWhiteboard" class="btn-close-modal">✕</button>
-        </div>
-
-        <div class="whiteboard-toolbar">
-          <button @click="selectTool('pen')" :class="{ active: drawingTool === 'pen' }">✏️ Pen</button>
-          <button @click="selectTool('eraser')" :class="{ active: drawingTool === 'eraser' }">🧹 Eraser</button>
-          <input type="color" v-model="drawingColor" />
-          <button @click="saveWhiteboardManually">💾 Save</button>
-          <button @click="clearWhiteboard">Clear All</button>
-          <button @click="toggleHistory">History</button>
-        </div>
-
-        <canvas
-          ref="whiteboardCanvas"
-          @mousedown="startDrawing"
-          @mousemove="draw"
-          @mouseup="stopDrawing"
-          @mouseleave="stopDrawing"
-          class="whiteboard-canvas"
-        ></canvas>
-
-        <div v-if="showHistory" class="history-panel">
-          <h4>Drawing History</h4>
-          <div v-for="entry in whiteboardHistory" :key="entry.whiteboardId" class="history-entry">
-            <strong>{{ entry.userName }}</strong> - {{ formatDateTime(entry.createdAt) }}
-            <button @click="restoreDrawing(entry)">Restore</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Task Detail Modal -->
@@ -375,6 +369,22 @@
         <div class="form-group">
           <label>Deadline</label>
           <input v-model="editingTask.deadlineDate" type="date" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label>Assignees</label>
+          <div v-if="availableAssignees.length === 0" class="empty-message">
+            No available assignees (add teams to project first)
+          </div>
+          <div v-else class="assignee-list">
+            <label v-for="member in availableAssignees" :key="member.userId" class="assignee-checkbox">
+              <input 
+                type="checkbox" 
+                :value="member.userId" 
+                v-model="editingTask.assigneeIds"
+              />
+              {{ member.firstName }} {{ member.lastName }}
+            </label>
+          </div>
         </div>
         <div class="modal-actions">
           <button @click="saveTaskEdit" class="btn-save">Save Changes</button>
@@ -453,14 +463,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import { io } from 'socket.io-client';
 import { useRouter } from 'vue-router';
 import { apiGet, apiPut, apiDelete, API_BASE_URL } from '../utils/api';
 import { getUserRole, getUsername, getUserId } from '../utils/auth';
 import { formatDate, formatStatus } from '../utils/formatters';
 
 const router = useRouter();
-let socket = null;
 
 // User role
 const userRole = ref(getUserRole());
@@ -491,18 +499,8 @@ const showEditModal = ref(false);
 const selectedUser = ref(null);
 const taskAssignees = ref([]);
 const showAssigneesModal = ref(false);
-
-// Whiteboard state
-const showWhiteboard = ref(false);
-const whiteboardCanvas = ref(null);
-const drawingTool = ref('pen');
-const drawingColor = ref('#000000');
-const isDrawing = ref(false);
-const canvasContext = ref(null);
-const showHistory = ref(false);
-const whiteboardHistory = ref([]);
-const activeCursors = ref({});
-const currentStroke = ref([]);
+const availableAssignees = ref([]);
+const showAssigneesDropdown = ref(null);
 
 // Calendar state
 const currentMonth = ref(new Date().getMonth());
@@ -663,6 +661,7 @@ const selectProject = async (project) => {
   teamMembers.value = [];
   activeProjectMenu.value = null;
   await fetchProjectTasks(project.projectId);
+  await fetchProjectAssignees(project.projectId);
 };
 
 const toggleProjectMenu = (projectId) => {
@@ -785,11 +784,89 @@ const viewTaskDetails = (task) => {
   showSubmenu.value = null;
 };
 
-const editTask = (task) => {
+const fetchProjectAssignees = async (projectId) => {
+  try {
+    const projectResponse = await apiGet(`/projects/${projectId}`);
+    const teams = projectResponse.data.teams || [];
+    const memberSet = new Set();
+    const members = [];
+
+    for (const team of teams) {
+      const teamResponse = await apiGet(`/teams/${team.teamId}`);
+      for (const member of teamResponse.data.users || []) {
+        if (!memberSet.has(member.userId)) {
+          memberSet.add(member.userId);
+          members.push(member);
+        }
+      }
+    }
+    availableAssignees.value = members.sort((a, b) => 
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+    );
+  } catch (error) {
+    console.error(error);
+    alert('Error loading project members');
+  }
+};
+
+const isAssigned = (task, user) => {
+  if (!task || !task.assignees) return false;
+  return task.assignees.some(a => a.userId === user.userId);
+};
+
+const toggleAssignee = async (task, user) => {
+  const currentAssigneeIds = task.assignees ? task.assignees.map(a => a.userId) : [];
+  const isCurrentlyAssigned = currentAssigneeIds.includes(user.userId);
+  
+  let newAssigneeIds;
+  if (isCurrentlyAssigned) {
+    newAssigneeIds = currentAssigneeIds.filter(id => id !== user.userId);
+  } else {
+    newAssigneeIds = [...currentAssigneeIds, user.userId];
+  }
+  
+  try {
+    await apiPut(`/tasks/${task.taskId}`, {
+      assigneeIds: newAssigneeIds
+    });
+    
+    // Update local state
+    const taskIndex = allTasks.value.findIndex(t => t.taskId === task.taskId);
+    if (taskIndex !== -1) {
+      // We need to update the assignees list locally. 
+      // Since we have the full user object, we can just add/remove it.
+      let newAssignees = [...(task.assignees || [])];
+      if (isCurrentlyAssigned) {
+        newAssignees = newAssignees.filter(a => a.userId !== user.userId);
+      } else {
+        newAssignees.push(user);
+      }
+      
+      allTasks.value[taskIndex] = {
+        ...allTasks.value[taskIndex],
+        assignees: newAssignees
+      };
+      
+      // Update currentMenuTask if it's the same
+      if (currentMenuTask.value && currentMenuTask.value.taskId === task.taskId) {
+        currentMenuTask.value = allTasks.value[taskIndex];
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    alert('Error updating assignees');
+  }
+};
+
+const editTask = async (task) => {
   editingTask.value = {
     ...task,
-    deadlineDate: task.deadline ? new Date(task.deadline * 1000).toISOString().split('T')[0] : ''
+    deadlineDate: task.deadline ? new Date(task.deadline * 1000).toISOString().split('T')[0] : '',
+    assigneeIds: task.assignees ? task.assignees.map(u => u.userId) : []
   };
+  
+  await fetchProjectAssignees(task.projectId);
+  
   showEditModal.value = true;
   activeMenu.value = null;
   showSubmenu.value = null;
@@ -806,19 +883,25 @@ const saveTaskEdit = async () => {
       description: editingTask.value.description,
       priority: editingTask.value.priority,
       status: editingTask.value.status,
-      deadline: deadlineTimestamp
+      deadline: deadlineTimestamp,
+      assigneeIds: editingTask.value.assigneeIds
     });
 
     // Update the task in the list
     const taskIndex = allTasks.value.findIndex(t => t.taskId === editingTask.value.taskId);
     if (taskIndex !== -1) {
+      // Fetch updated task to get full assignee objects
+      const updatedTaskResponse = await apiGet(`/tasks/${editingTask.value.taskId}/assignees`);
+      const updatedAssignees = updatedTaskResponse.data;
+
       allTasks.value[taskIndex] = {
         ...allTasks.value[taskIndex],
         name: editingTask.value.name,
         description: editingTask.value.description,
         priority: editingTask.value.priority,
         status: editingTask.value.status,
-        deadline: deadlineTimestamp
+        deadline: deadlineTimestamp,
+        assignees: updatedAssignees
       };
     }
 
@@ -943,6 +1026,14 @@ const setTaskForReview = async (task) => {
   }
 };
 
+const toggleAssigneesDropdown = (taskId) => {
+  if (showAssigneesDropdown.value === taskId) {
+    showAssigneesDropdown.value = null;
+  } else {
+    showAssigneesDropdown.value = taskId;
+  }
+};
+
 const previousMonth = () => {
   if (currentMonth.value === 0) {
     currentMonth.value = 11;
@@ -961,320 +1052,6 @@ const nextMonth = () => {
   }
 };
 
-// Whiteboard methods
-const openWhiteboard = () => {
-  showWhiteboard.value = true;
-  setTimeout(() => {
-    initWhiteboard();
-  }, 100);
-};
-
-const closeWhiteboard = () => {
-  disconnectWebSocket();
-  showWhiteboard.value = false;
-  showHistory.value = false;
-  activeCursors.value = {};
-};
-
-const connectWebSocket = () => {
-  if (socket) return;
-  
-  socket = io(API_BASE_URL);
-  
-  const userId = getUserId();
-  const username = getUsername() || 'User';
-  
-  socket.on('connect', () => {
-    console.log('WebSocket connected');
-    socket.emit('join_whiteboard', {
-      projectId: selectedProject.value.projectId,
-      userId,
-      username
-    });
-  });
-  
-  socket.on('whiteboard_state', (data) => {
-    console.log('Received whiteboard state from WebSocket');
-    if (data.canvasData && canvasContext.value) {
-      const img = new Image();
-      img.onload = () => {
-        canvasContext.value.clearRect(0, 0, whiteboardCanvas.value.width, whiteboardCanvas.value.height);
-        canvasContext.value.drawImage(img, 0, 0);
-      };
-      img.src = data.canvasData;
-    }
-  });
-  
-  socket.on('draw', (data) => {
-    drawRemoteStroke(data);
-  });
-  
-  socket.on('cursor_update', (data) => {
-    activeCursors.value[data.userId] = {
-      username: data.username,
-      position: data.position
-    };
-  });
-  
-  socket.on('user_joined', (data) => {
-    console.log(`${data.username} joined the whiteboard`);
-  });
-  
-  socket.on('user_left', (data) => {
-    delete activeCursors.value[data.userId];
-  });
-  
-  socket.on('canvas_cleared', () => {
-    if (canvasContext.value) {
-      canvasContext.value.clearRect(0, 0, whiteboardCanvas.value.width, whiteboardCanvas.value.height);
-    }
-  });
-  
-  socket.on('canvas_saved', () => {
-    // Reload canvas from server when someone saves
-    setTimeout(() => {
-      loadWhiteboard();
-    }, 100);
-  });
-};
-
-const disconnectWebSocket = () => {
-  if (socket) {
-    const userId = localStorage.getItem('userId');
-    socket.emit('leave_whiteboard', {
-      projectId: selectedProject.value.projectId,
-      userId
-    });
-    // Wait for message to be sent before disconnecting
-    setTimeout(() => {
-      if (socket) {
-        socket.disconnect();
-        socket = null;
-      }
-    }, 100);
-  }
-};
-
-const drawRemoteStroke = (data) => {
-  if (!canvasContext.value || !data.points || data.points.length < 2) return;
-  
-  canvasContext.value.beginPath();
-  canvasContext.value.moveTo(data.points[0].x, data.points[0].y);
-  
-  if (data.tool === 'eraser') {
-    canvasContext.value.globalCompositeOperation = 'destination-out';
-  } else {
-    canvasContext.value.strokeStyle = data.color || '#000000';
-    canvasContext.value.globalCompositeOperation = 'source-over';
-  }
-  
-  for (let i = 1; i < data.points.length; i++) {
-    canvasContext.value.lineTo(data.points[i].x, data.points[i].y);
-  }
-  
-  canvasContext.value.stroke();
-};
-
-const initWhiteboard = async () => {
-  const canvas = whiteboardCanvas.value;
-  if (!canvas) return;
-  
-  canvas.width = 800;
-  canvas.height = 600;
-  canvasContext.value = canvas.getContext('2d');
-  canvasContext.value.lineCap = 'round';
-  canvasContext.value.lineJoin = 'round';
-  canvasContext.value.lineWidth = 2;
-  
-  // Load from database first
-  await loadWhiteboard();
-  
-  // Then connect WebSocket
-  setTimeout(() => {
-    connectWebSocket();
-  }, 200);
-  
-  canvas.addEventListener('mousemove', handleCanvasMouseMove);
-};
-
-const handleCanvasMouseMove = (e) => {
-  if (!socket || !selectedProject.value) return;
-  
-  const rect = whiteboardCanvas.value.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  
-  const userId = getUserId();
-  const username = getUsername() || 'User';
-  
-  socket.emit('cursor_move', {
-    projectId: selectedProject.value.projectId,
-    userId,
-    username,
-    position: { x, y }
-  });
-};
-
-const loadWhiteboard = async () => {
-  if (!selectedProject.value) return;
-  
-  try {
-    const response = await apiGet(`/projects/${selectedProject.value.projectId}/whiteboard`);
-    
-    canvasContext.value.clearRect(0, 0, whiteboardCanvas.value.width, whiteboardCanvas.value.height);
-    
-    if (response.data.imageData) {
-      const img = new Image();
-      img.onload = () => {
-        canvasContext.value.drawImage(img, 0, 0);
-      };
-      img.src = response.data.imageData;
-    }
-    
-    whiteboardHistory.value = response.data.history || [];
-  } catch (error) {
-    console.error('Error loading whiteboard:', error);
-  }
-};
-
-const selectTool = (tool) => {
-  drawingTool.value = tool;
-};
-
-const startDrawing = (e) => {
-  if (!canvasContext.value) return;
-  isDrawing.value = true;
-  currentStroke.value = [];
-  
-  const rect = whiteboardCanvas.value.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  
-  currentStroke.value.push({ x, y });
-  
-  canvasContext.value.beginPath();
-  canvasContext.value.moveTo(x, y);
-};
-
-const draw = (e) => {
-  if (!isDrawing.value || !canvasContext.value) return;
-  
-  const rect = whiteboardCanvas.value.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  
-  currentStroke.value.push({ x, y });
-  
-  if (drawingTool.value === 'pen') {
-    canvasContext.value.strokeStyle = drawingColor.value;
-    canvasContext.value.globalCompositeOperation = 'source-over';
-  } else if (drawingTool.value === 'eraser') {
-    canvasContext.value.globalCompositeOperation = 'destination-out';
-  }
-  
-  canvasContext.value.lineTo(x, y);
-  canvasContext.value.stroke();
-};
-
-const stopDrawing = () => {
-  if (!isDrawing.value) return;
-  
-  isDrawing.value = false;
-  
-  // Emit stroke to other users via WebSocket
-  if (socket && selectedProject.value && currentStroke.value.length > 0) {
-    const userId = getUserId();
-    const username = getUsername() || 'User';
-    
-    socket.emit('draw', {
-      projectId: selectedProject.value.projectId,
-      userId,
-      username,
-      tool: drawingTool.value,
-      color: drawingColor.value,
-      points: currentStroke.value
-    });
-  }
-  
-  currentStroke.value = [];
-  
-  // Auto-save to database via WebSocket
-  saveWhiteboardToServer();
-};
-
-const saveWhiteboardToServer = async () => {
-  if (!selectedProject.value || !socket) return;
-  
-  const userId = getUserId();
-  const username = getUsername() || 'User';
-  const imageData = whiteboardCanvas.value.toDataURL();
-  
-  // Save via WebSocket (which now saves to database)
-  socket.emit('save_canvas', {
-    projectId: selectedProject.value.projectId,
-    userId,
-    username,
-    canvasData: imageData
-  });
-};
-
-const saveWhiteboardManually = async () => {
-  await saveWhiteboardToServer();
-  alert('Whiteboard saved successfully');
-};
-
-const clearWhiteboard = async () => {
-  if (!confirm('Clear whiteboard?')) return;
-  
-  canvasContext.value.clearRect(
-    0, 0, 
-    whiteboardCanvas.value.width, 
-    whiteboardCanvas.value.height
-  );
-  
-  // Emit clear event via WebSocket
-  if (socket && selectedProject.value) {
-    const userId = localStorage.getItem('userId');
-    const username = localStorage.getItem('username') || 'User';
-    
-    socket.emit('clear_canvas', {
-      projectId: selectedProject.value.projectId,
-      userId,
-      username
-    });
-  }
-  
-  await saveWhiteboardToServer();
-};
-
-const toggleHistory = () => {
-  showHistory.value = !showHistory.value;
-};
-
-const restoreDrawing = (entry) => {
-  if (!confirm('Revert to this version? This will save it as a new version.')) return;
-  
-  const img = new Image();
-  img.onload = () => {
-    canvasContext.value.clearRect(
-      0, 0, 
-      whiteboardCanvas.value.width, 
-      whiteboardCanvas.value.height
-    );
-    canvasContext.value.drawImage(img, 0, 0);
-    
-    saveWhiteboardToServer();
-  };
-  img.src = entry.imageData;
-  showHistory.value = false;
-};
-
-const formatDateTime = (timestamp) => {
-  if (!timestamp) return '';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleString();
-};
-
 onMounted(() => {
   fetchProjects();
   
@@ -1285,11 +1062,10 @@ onMounted(() => {
       currentMenuTask.value = null;
       showSubmenu.value = null;
     }
+    if (!e.target.closest('.assignees-dropdown-container')) {
+      showAssigneesDropdown.value = null;
+    }
   });
-});
-
-onBeforeUnmount(() => {
-  disconnectWebSocket();
 });
 </script>
 
@@ -1900,6 +1676,89 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+/* Assignees Dropdown in Card */
+.assignees-dropdown-container {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.assignees-dropdown-container.table-dropdown {
+  margin-bottom: 0;
+  display: inline-block;
+}
+
+.assignees-trigger {
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  transition: background 0.2s;
+}
+
+.assignees-trigger:hover {
+  background: #e0e0e0;
+  color: var(--text-primary);
+}
+
+.assignees-dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
+  min-width: 200px;
+  margin-top: 4px;
+  padding: 8px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.assignees-dropdown-list.right-aligned {
+  left: auto;
+  right: 0;
+}
+
+.assignee-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.assignee-list-item:hover {
+  background: var(--bg-secondary);
+}
+
+.assignee-avatar-small {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #000;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.empty-assignees {
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
 /* Calendar View */
 .calendar-view {
   background: var(--card-bg);
@@ -2097,22 +1956,7 @@ onBeforeUnmount(() => {
   font-size: 18px;
 }
 
-.btn-whiteboard {
-  padding: 12px 24px;
-  background: #000;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: background 0.2s;
-  pointer-events: auto;
-}
 
-.btn-whiteboard:hover {
-  background: #333;
-}
 
 .manager-view {
   display: flex;
@@ -2120,7 +1964,7 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-/* Whiteboard Modal */
+/* Modals */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -2173,7 +2017,7 @@ onBeforeUnmount(() => {
   margin-bottom: 8px;
   font-weight: 500;
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .form-input,
@@ -2234,145 +2078,9 @@ onBeforeUnmount(() => {
   background: #d0d0d0;
 }
 
-.whiteboard-modal {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 30px;
-  max-width: 900px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-}
 
-.whiteboard-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
 
-.whiteboard-modal-header h2 {
-  margin: 0;
-  font-size: 24px;
-}
 
-.btn-close-modal {
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-
-.btn-close-modal:hover {
-  background: #f0f0f0;
-  color: var(--text-primary);
-}
-
-.whiteboard-toolbar {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 15px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  flex-wrap: wrap;
-}
-
-.whiteboard-toolbar button {
-  padding: 8px 16px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg);
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.whiteboard-toolbar button:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.whiteboard-toolbar button.active {
-  background: var(--text-primary);
-  color: var(--bg-primary);
-}
-
-.whiteboard-toolbar button.active:hover {
-  opacity: 0.8;
-}
-
-.whiteboard-toolbar input[type="color"] {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.whiteboard-canvas {
-  background: white;
-  border: 2px solid var(--border-color);
-  border-radius: 8px;
-  cursor: crosshair;
-  display: block;
-  width: 100%;
-}
-
-.history-panel {
-  position: absolute;
-  right: 30px;
-  top: 140px;
-  width: 280px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 15px;
-  max-height: 400px;
-  overflow-y: auto;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  z-index: 100;
-}
-
-.history-panel h4 {
-  margin: 0 0 15px 0;
-  font-size: 16px;
-}
-
-.history-entry {
-  padding: 10px;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 13px;
-}
-
-.history-entry:last-child {
-  border-bottom: none;
-}
-
-.history-entry button {
-  margin-top: 5px;
-  padding: 5px 10px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #333;
-}
-
-.history-entry button:hover {
-  background: var(--bg-secondary);
-  color: #333;
-}
 
 /* User Dashboard Styles */
 .user-view {
@@ -2408,7 +2116,7 @@ onBeforeUnmount(() => {
 .stat-card h3 {
   margin: 0 0 15px 0;
   font-size: 18px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .stat-number {
@@ -2503,7 +2211,7 @@ onBeforeUnmount(() => {
 .detail-group p {
   margin: 0;
   font-size: 16px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Member Item Active State */
@@ -2511,6 +2219,8 @@ onBeforeUnmount(() => {
   background: #e3f2fd;
   border-left: 3px solid #1976d2;
 }
+
+
 
 /* Assignees Modal */
 .assignees-modal {
@@ -2556,7 +2266,7 @@ onBeforeUnmount(() => {
 }
 
 .assignee-info strong {
-  color: #333;
+  color: var(--text-primary);
   font-size: 16px;
 }
 
@@ -2571,88 +2281,36 @@ onBeforeUnmount(() => {
   color: #999;
 }
 
-/* User Details Sidebar */
-.user-details-sidebar {
-  position: fixed;
-  right: 0;
-  top: 0;
-  width: 350px;
-  height: 100%;
-  background: var(--card-bg);
-  border-left: 1px solid #e0e0e0;
-  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-}
-
-.user-details-header {
-  padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f8f9fa;
-}
-
-.user-details-header h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.btn-close-sidebar {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-
-.btn-close-sidebar:hover {
-  background: #e0e0e0;
-  color: #333;
-}
-
-.user-details-content {
-  padding: 20px;
+/* Edit Task Modal Assignee List */
+.assignee-list {
+  max-height: 150px;
   overflow-y: auto;
-}
-
-.detail-group {
-  margin-bottom: 20px;
-}
-
-.detail-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
-}
-
-.detail-group p {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
   padding: 10px;
-  background: #f8f9fa;
+  margin-top: 5px;
+}
+
+.assignee-checkbox {
+  display: block;
+  padding: 8px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.assignee-checkbox:hover {
+  background: var(--bg-secondary);
   border-radius: 4px;
 }
 
-.member-item.active {
-  background: #e3f2fd;
-  border-left: 3px solid #2196f3;
+.assignee-checkbox input {
+  margin-right: 10px;
+  cursor: pointer;
 }
+
+
 </style>
 
 

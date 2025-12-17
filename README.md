@@ -1,6 +1,6 @@
 # Project Tracker App
 
-A comprehensive project management application with role-based access control, team collaboration, and integrated whiteboard functionality.
+A comprehensive project management application with role-based access control and team collaboration.
 
 ## Prerequisites
 - Python 3.x
@@ -33,11 +33,7 @@ A comprehensive project management application with role-based access control, t
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the whiteboard table migration (if not already created):
-   ```bash
-   python add_whiteboard_table.py
-   ```
-5. Run the application:
+4. Run the application:
    ```bash
    python run.py
    ```
@@ -88,19 +84,6 @@ A comprehensive project management application with role-based access control, t
 - **Task Actions**: View, edit, change priority/status, delete
 - **Search & Filter**: Find tasks quickly
 
-### Collaborative Whiteboard
-- **Project-Based**: One whiteboard per project
-- **Persistent Storage**: Whiteboards saved to MySQL database
-- **Drawing Tools**: Pen and eraser with color selection
-- **Auto-Save**: Automatically saves after each stroke
-- **Manual Save**: Option to save manually
-- **Version History** (Manager/Admin only):
-  - View last 20 changes with timestamps and user attribution
-  - Revert to previous versions
-  - Full audit trail of changes
-- **Access Control**: All team members can draw, only managers can view/revert history
-- **Home Tab Integration**: Accessible from Home tab, switches when project changes
-
 ### Jira Integration (Optional)
 - Connect projects to Jira for external tracking
 - Sync tasks with Jira issues
@@ -112,7 +95,7 @@ A comprehensive project management application with role-based access control, t
 - `/reset-password` - Password reset
 
 ### User Routes
-- `/` - Home page (redirects managers to dashboard, shows whiteboard for users)
+- `/` - Home page (redirects managers to dashboard)
 - `/my-tasks` - View assigned tasks
 
 ### Manager/Admin Routes
@@ -132,19 +115,16 @@ A comprehensive project management application with role-based access control, t
 - Full system access
 - Create and manage users
 - Access all projects and teams
-- View all whiteboards and history
 
 ### Manager
 - Access assigned projects and teams
 - Create and manage tasks
-- View manager dashboard with analytics
-- Access whiteboard history and version control
+- View manager dashboard
 - Assign teams to projects
 
 ### User
 - View assigned tasks
 - Update task status
-- Collaborate on project whiteboards
 - Access projects through team membership
 
 ## API Endpoints
@@ -187,12 +167,6 @@ A comprehensive project management application with role-based access control, t
 - `PUT /tasks/:id/status` - Update task status
 - `DELETE /tasks/:id` - Delete task
 
-### Whiteboards
-- `GET /projects/:id/whiteboard` - Get current whiteboard and history
-- `POST /projects/:id/whiteboard` - Save whiteboard state
-- `GET /projects/:id/whiteboard/history` - Get whiteboard history
-- `DELETE /whiteboards/:id` - Delete whiteboard entry (Manager/Admin only)
-
 ## Database Schema
 
 ### Core Tables
@@ -205,7 +179,6 @@ A comprehensive project management application with role-based access control, t
 - `epics` - Epic definitions within projects
 - `tasks` - Task details with assignments and tracking
 - `task_assignees` - Many-to-many relationship between tasks and users
-- `whiteboards` - Whiteboard canvas states with version history
 
 ## Technology Stack
 

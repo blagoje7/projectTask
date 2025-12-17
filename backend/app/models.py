@@ -169,30 +169,3 @@ class Task(db.Model):
             'updatedAt': self.updated_at,
             'assignees': [{'userId': u.user_id, 'email': u.email, 'firstName': u.first_name, 'lastName': u.last_name} for u in self.assignees]
         }
-
-class Whiteboard(db.Model):
-    whiteboard_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = db.Column(db.String(36), db.ForeignKey('project.project_id'), nullable=False)
-    image_data = db.Column(db.Text, nullable=False)  # Base64 encoded canvas data
-    created_by = db.Column(db.String(36), db.ForeignKey('user.user_id'), nullable=False)
-    created_at = db.Column(db.Integer, default=lambda: int(datetime.utcnow().timestamp()))
-    
-    # Relationships
-    creator = db.relationship('User', foreign_keys=[created_by])
-    
-    def to_dict(self):
-        user_name = "Unknown"
-        try:
-            if self.creator:
-                user_name = f"{self.creator.first_name} {self.creator.last_name}"
-        except:
-            pass
-            
-        return {
-            'whiteboardId': self.whiteboard_id,
-            'projectId': self.project_id,
-            'imageData': self.image_data,
-            'createdBy': self.created_by,
-            'createdAt': self.created_at,
-            'userName': user_name
-        }

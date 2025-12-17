@@ -162,15 +162,6 @@ const canManageTeams = isAdminOrManager();
 
 ---
 
-### 6. ❌ Duplicated Whiteboard Logic (LOW)
-**Problem**: Whiteboard WebSocket code duplicated in Home.vue and ManagerDashboard.vue (800+ lines each)  
-**Impact**: Bug fixes need to be applied twice  
-**Solution**: Extract to composable `useWhiteboard.js`
-
-**Recommendation**: Create `composables/useWhiteboard.js` with all whiteboard logic
-
----
-
 ### 7. ℹ️ Unused/Redundant Files (INFO)
 **Files that appear to be placeholders or unused:**
 - `Project.vue` - Only displays role, seems like a placeholder
@@ -192,7 +183,6 @@ const canManageTeams = isAdminOrManager();
 
 ### Phase 3: Medium (After)
 6. Replace duplicated formatters with utility imports
-7. Extract whiteboard logic to composable
 
 ### Phase 4: Cleanup (Optional)
 8. Remove unused files

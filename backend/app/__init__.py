@@ -1,11 +1,8 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from flask_socketio import SocketIO
 from config import Config
 from .models import db, User, Role
-
-socketio = SocketIO(cors_allowed_origins="*", async_mode='threading')
 
 def create_app():
     app = Flask(__name__)
@@ -15,7 +12,8 @@ def create_app():
     CORS(app)
     jwt = JWTManager(app)
     db.init_app(app)
-    socketio.init_app(app)
+    
+
 
     # Register Blueprints
     from .routes.auth import auth_bp
@@ -24,7 +22,6 @@ def create_app():
     from .routes.projects import projects_bp
     from .routes.epics import epics_bp
     from .routes.tasks import tasks_bp
-    from .routes.whiteboards import whiteboards_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -32,12 +29,7 @@ def create_app():
     app.register_blueprint(projects_bp)
     app.register_blueprint(epics_bp)
     app.register_blueprint(tasks_bp)
-    app.register_blueprint(whiteboards_bp)
     
-    # Register WebSocket events
-    from .whiteboard_events import register_whiteboard_events
-    register_whiteboard_events(socketio)
-
     # Create tables and seed data
     with app.app_context():
         db.create_all()
