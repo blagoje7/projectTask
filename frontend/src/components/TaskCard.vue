@@ -36,8 +36,10 @@
 </template>
 
 <script setup>
+// --- Imports ---
 import { formatStatus, formatDate } from '../utils/formatters';
 
+// --- Props ---
 defineProps({
   task: {
     type: Object,

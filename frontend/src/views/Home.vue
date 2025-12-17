@@ -152,6 +152,7 @@
             </thead>
             <tbody>
               <tr v-for="task in filteredTasks" :key="task.taskId" class="task-row">
+                <!-- Task Actions (Context Menu Trigger) -->
                 <td class="task-actions">
                   <button @click.stop="toggleMenu(task.taskId, $event)" class="menu-btn">⋯</button>
                 </td>
@@ -169,6 +170,7 @@
                   </span>
                 </td>
                 <td class="task-date">{{ formatDate(task.deadline) }}</td>
+                <!-- Assignees Dropdown (List View) -->
                 <td class="task-assignees">
                   <div class="assignees-dropdown-container table-dropdown">
                     <div class="assignees-trigger" @click.stop="toggleAssigneesDropdown(task.taskId)">
@@ -193,6 +195,7 @@
         <!-- Grid View -->
         <div v-if="viewMode === 'grid'" class="grid-view">
           <div v-for="task in filteredTasks" :key="task.taskId" class="task-card">
+            <!-- Card Header & Actions -->
             <div class="card-header">
               <span class="task-id">{{ task.jiraKey || `TASK-${task.taskId.substring(0, 5)}` }}</span>
               <button @click.stop="toggleMenu(task.taskId, $event)" class="menu-btn" :ref="`menuBtn_${task.taskId}`">⋯</button>
@@ -250,6 +253,7 @@
               </div>
             </div>
 
+            <!-- Card Footer -->
             <div class="card-footer">
               <span :class="['priority-badge', 'priority-' + task.priority]">
                 {{ task.priority }}
@@ -462,6 +466,7 @@
 </template>
 
 <script setup>
+// --- Imports ---
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiGet, apiPut, apiDelete, API_BASE_URL } from '../utils/api';
@@ -470,44 +475,54 @@ import { formatDate, formatStatus } from '../utils/formatters';
 
 const router = useRouter();
 
-// User role
+// --- State Management ---
+// User Info
 const userRole = ref(getUserRole());
 const userName = ref(getUsername() || 'User');
 
-// State
+// Project & Team Data
 const projects = ref([]);
-const activeProjectMenu = ref(null);
-const activeTeamMenu = ref(null);
-const selectedProject = ref(null);
 const currentTeams = ref([]);
-const selectedTeam = ref(null);
 const teamMembers = ref([]);
 const allTasks = ref([]);
+
+// Selection State
+const selectedProject = ref(null);
+const selectedTeam = ref(null);
+const selectedUser = ref(null);
+
+// UI State (Menus, Modals, Views)
+const activeProjectMenu = ref(null);
+const activeTeamMenu = ref(null);
 const viewMode = ref('list');
-const searchQuery = ref('');
-const projectSearchQuery = ref('');
-const teamSearchQuery = ref('');
-const memberSearchQuery = ref('');
 const activeMenu = ref(null);
 const currentMenuTask = ref(null);
 const showSubmenu = ref(null);
 const submenuDirection = ref('right');
 const menuPosition = ref({});
+const showAssigneesDropdown = ref(null);
+
+// Search & Filters
+const searchQuery = ref('');
+const projectSearchQuery = ref('');
+const teamSearchQuery = ref('');
+const memberSearchQuery = ref('');
+
+// Modals
 const detailTask = ref(null);
 const editingTask = ref(null);
 const showEditModal = ref(false);
-const selectedUser = ref(null);
-const taskAssignees = ref([]);
 const showAssigneesModal = ref(false);
+const taskAssignees = ref([]);
 const availableAssignees = ref([]);
-const showAssigneesDropdown = ref(null);
 
-// Calendar state
+// Calendar State
 const currentMonth = ref(new Date().getMonth());
 const currentYear = ref(new Date().getFullYear());
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Computed
+// --- Computed Properties ---
+// Filtered Lists
 const filteredProjects = computed(() => {
   let sorted = [...projects.value].sort((a, b) => a.name.localeCompare(b.name));
   if (projectSearchQuery.value) {
@@ -642,7 +657,9 @@ const calendarDays = computed(() => {
   return days;
 });
 
-// Methods
+// --- Methods ---
+
+// Data Fetching
 const fetchProjects = async () => {
   try {
     const response = await apiGet('/projects');
@@ -654,6 +671,7 @@ const fetchProjects = async () => {
   }
 };
 
+// Navigation & Selection
 const selectProject = async (project) => {
   selectedProject.value = project;
   currentTeams.value = project.teams || [];
@@ -692,6 +710,7 @@ const selectTeam = async (team) => {
   await fetchTeamMembers(team.teamId);
 };
 
+// Task Data Fetching
 const fetchProjectTasks = async (projectId) => {
   try {
     const response = await apiGet(`/projects/${projectId}`);
@@ -714,6 +733,7 @@ const fetchTeamMembers = async (teamId) => {
   }
 };
 
+// Context Menu Logic
 const toggleMenu = (taskId, event) => {
   const task = allTasks.value.find(t => t.taskId === taskId);
   
@@ -784,6 +804,7 @@ const viewTaskDetails = (task) => {
   showSubmenu.value = null;
 };
 
+// Assignee Management
 const fetchProjectAssignees = async (projectId) => {
   try {
     const projectResponse = await apiGet(`/projects/${projectId}`);
@@ -858,6 +879,7 @@ const toggleAssignee = async (task, user) => {
   }
 };
 
+// Task Editing & CRUD
 const editTask = async (task) => {
   editingTask.value = {
     ...task,
@@ -1034,6 +1056,7 @@ const toggleAssigneesDropdown = (taskId) => {
   }
 };
 
+// Calendar Navigation
 const previousMonth = () => {
   if (currentMonth.value === 0) {
     currentMonth.value = 11;
@@ -1052,6 +1075,7 @@ const nextMonth = () => {
   }
 };
 
+// Lifecycle Hooks
 onMounted(() => {
   fetchProjects();
   
