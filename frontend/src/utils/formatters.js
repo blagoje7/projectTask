@@ -56,3 +56,24 @@ export function getInitials(firstName, lastName) {
   const last = lastName ? lastName[0].toUpperCase() : '';
   return first + last;
 }
+
+/**
+ * Format duration in seconds to human readable format
+ * Example: 3665 seconds -> "1h 1m" or 45 seconds -> "45s"
+ */
+export function formatDuration(seconds) {
+  if (!seconds || seconds < 0) return 'N/A';
+  
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (secs > 0 && days === 0 && hours === 0) parts.push(`${secs}s`);
+  
+  return parts.length > 0 ? parts.join(' ') : '0s';
+}

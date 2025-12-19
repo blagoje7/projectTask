@@ -59,7 +59,7 @@
                 {{ user.isActive ? 'Active' : 'Inactive' }}
               </span>
             </td>
-            <td class="date-cell">{{ formatDate(user.createdAt) }}</td>
+            <td class="date-cell">{{ formatDateTime(user.createdAt) }}</td>
             <td class="teams-cell">
               <span v-if="user.teams && user.teams.length > 0" class="teams-count">
                 {{ user.teams.length }} team(s)
@@ -85,71 +85,68 @@
     </div>
 
     <!-- User Details Modal -->
-    <div v-if="selectedUser" class="modal-overlay" @click="selectedUser = null">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>User Details</h2>
-          <button @click="selectedUser = null" class="btn-close">&times;</button>
+    <Modal v-model="showModal" title="User Details">
+      <div v-if="selectedUser">
+        <div class="detail-row">
+          <strong>User ID:</strong>
+          <span>{{ selectedUser.userId }}</span>
         </div>
-        <div class="modal-body">
-          <div class="detail-row">
-            <strong>User ID:</strong>
-            <span>{{ selectedUser.userId }}</span>
+        <div class="detail-row">
+          <strong>Email:</strong>
+          <span>{{ selectedUser.email }}</span>
+        </div>
+        <div class="detail-row">
+          <strong>First Name:</strong>
+          <span>{{ selectedUser.firstName || 'Not set' }}</span>
+        </div>
+        <div class="detail-row">
+          <strong>Last Name:</strong>
+          <span>{{ selectedUser.lastName || 'Not set' }}</span>
+        </div>
+        <div class="detail-row">
+          <strong>Role:</strong>
+          <span class="role-badge" :class="'role-' + (selectedUser.role?.name || selectedUser.role)">
+            {{ selectedUser.role?.name || selectedUser.role }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <strong>Status:</strong>
+          <span class="status-badge" :class="selectedUser.isActive ? 'active' : 'inactive'">
+            {{ selectedUser.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <strong>Created:</strong>
+          <span>{{ formatDateTime(selectedUser.createdAt) }}</span>
+        </div>
+        <div class="detail-row">
+          <strong>Teams:</strong>
+          <div v-if="selectedUser.teams && selectedUser.teams.length > 0" class="teams-list">
+            <router-link 
+              v-for="team in selectedUser.teams" 
+              :key="team.teamId" 
+              :to="`/teams/${team.teamId}`"
+              class="team-item"
+            >
+              {{ team.name }}
+            </router-link>
           </div>
-          <div class="detail-row">
-            <strong>Email:</strong>
-            <span>{{ selectedUser.email }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>First Name:</strong>
-            <span>{{ selectedUser.firstName || 'Not set' }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>Last Name:</strong>
-            <span>{{ selectedUser.lastName || 'Not set' }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>Role:</strong>
-            <span class="role-badge" :class="'role-' + (selectedUser.role?.name || selectedUser.role)">
-              {{ selectedUser.role?.name || selectedUser.role }}
-            </span>
-          </div>
-          <div class="detail-row">
-            <strong>Status:</strong>
-            <span class="status-badge" :class="selectedUser.isActive ? 'active' : 'inactive'">
-              {{ selectedUser.isActive ? 'Active' : 'Inactive' }}
-            </span>
-          </div>
-          <div class="detail-row">
-            <strong>Created:</strong>
-            <span>{{ formatDate(selectedUser.createdAt) }}</span>
-          </div>
-          <div class="detail-row">
-            <strong>Teams:</strong>
-            <div v-if="selectedUser.teams && selectedUser.teams.length > 0" class="teams-list">
-              <router-link 
-                v-for="team in selectedUser.teams" 
-                :key="team.teamId" 
-                :to="`/teams/${team.teamId}`"
-                class="team-item"
-              >
-                {{ team.name }}
-              </router-link>
-            </div>
-            <span v-else>Not assigned to any teams</span>
-          </div>
+          <span v-else>Not assigned to any teams</span>
         </div>
       </div>
-    </div>
+    </Modal>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { apiGet, apiPut } from '../utils/api';
+import { formatDateTime } from '../utils/formatters';
+import Modal from '../components/Modal.vue';
 
 const users = ref([]);
 const selectedUser = ref(null);
+const showModal = ref(false);
 const searchQuery = ref('');
 const filterRole = ref('');
 const filterActive = ref('');
@@ -260,12 +257,7 @@ const toggleActive = async (user) => {
 
 const viewDetails = (user) => {
   selectedUser.value = user;
-};
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return 'N/A';
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  showModal.value = true;
 };
 
 onMounted(fetchUsers);
@@ -286,21 +278,10 @@ onMounted(fetchUsers);
 
 .search-input {
   flex: 1;
-  padding: 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 14px;
-  background: var(--card-bg);
-  color: var(--text-primary);
 }
 
 .filter-select {
-  padding: 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 14px;
-  background: var(--card-bg);
-  color: var(--text-primary);
+  min-width: 150px;
 }
 
 .user-count {
@@ -449,59 +430,7 @@ onMounted(fetchUsers);
   color: #999;
 }
 
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--modal-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--card-bg);
-  border-radius: 8px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-}
-
-.modal-header h2 {
-  margin: 0;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: #999;
-  line-height: 1;
-}
-
-.btn-close:hover {
-  color: #333;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
+/* Detail Row Styles for Modal Content */
 .detail-row {
   display: flex;
   padding: 12px 0;
@@ -520,7 +449,7 @@ onMounted(fetchUsers);
 
 .detail-row span {
   flex: 1;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
@@ -532,8 +461,8 @@ onMounted(fetchUsers);
 
 .team-item {
   padding: 6px 10px;
-  background: #3498db;
-  border-radius: 4px;
+  background: var(--primary-color);
+  border-radius: 3px;
   font-size: 13px;
   text-decoration: none;
   color: white;
@@ -541,8 +470,9 @@ onMounted(fetchUsers);
 }
 
 .team-item:hover {
-  background: #2980b9;
+  background: var(--primary-hover);
   color: white;
+  text-decoration: none;
 }
 
 .role-group {
@@ -567,12 +497,6 @@ onMounted(fetchUsers);
 
 .group-search-input {
   width: 300px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 14px;
-  background: var(--card-bg);
-  color: var(--text-primary);
 }
 
 .no-data-message {

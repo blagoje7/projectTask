@@ -2,7 +2,7 @@
   <div class="project-list">
     <div class="header">
       <h1>Projects</h1>
-      <button @click="$router.push('/projects/new')" class="btn-create" v-if="isManager || isAdmin">
+      <button @click="$router.push('/projects/new')" class="primary" v-if="isManager || isAdmin">
         + New Project
       </button>
     </div>
@@ -31,7 +31,7 @@
         </div>
 
         <div class="actions">
-          <button @click="viewProject(project.projectId)" class="btn-view">
+          <button @click="viewProject(project.projectId)" class="primary">
             View Details
           </button>
         </div>
@@ -81,20 +81,6 @@ onMounted(fetchProjects);
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
-}
-
-.btn-create {
-  background: #000;
-  color: white;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-create:hover {
-  background: #333;
 }
 
 .empty-state {
@@ -164,18 +150,7 @@ onMounted(fetchProjects);
   gap: 10px;
 }
 
-.btn-view {
+.actions button {
   flex: 1;
-  background: #000;
-  color: white;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn-view:hover {
-  background: #333;
 }
 </style>

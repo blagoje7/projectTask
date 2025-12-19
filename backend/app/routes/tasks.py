@@ -99,20 +99,26 @@ def create_task(project_id):
     
     return success_response(task.to_dict(), 201)
 
-"""Update task details (Admin/Manager only)"""
+"""Update task details (Admin/Manager only for priority/deadline, all users for other fields)"""
 @tasks_bp.route('/tasks/<task_id>', methods=['PUT'])
 @jwt_required()
 def update_task(task_id):
     role = get_current_user_role()
-    error = check_role(role, ADMIN_MANAGER)
-    if error:
-        return error
     
     task = Task.query.get(task_id)
     if not task:
         return error_response("Task not found", 404)
     
     data = request.get_json()
+    
+    # Check if user is trying to update priority or deadline
+    if ('priority' in data or 'deadline' in data) and role not in ['admin', 'manager']:
+        return error_response("Only managers and admins can change task priority or deadline", 403)
+    
+    # Only admin/manager can update name, description, epicId
+    error = check_role(role, ADMIN_MANAGER)
+    if error:
+        return error
     
     if 'name' in data:
         task.name = data['name']
@@ -140,6 +146,10 @@ def update_task(task_id):
 @tasks_bp.route('/tasks/<task_id>/status', methods=['PUT'])
 @jwt_required()
 def update_task_status(task_id):
+    from datetime import datetime
+    
+    role = get_current_user_role()
+    
     task = Task.query.get(task_id)
     if not task:
         return error_response("Task not found", 404)
@@ -150,8 +160,36 @@ def update_task_status(task_id):
     if status not in ALL_STATUSES:
         return error_response(f"Invalid status. Must be one of: {', '.join(ALL_STATUSES)}")
     
+    # Only managers/admins can mark task as done
+    if status == 'done' and role not in ['admin', 'manager']:
+        return error_response("Only managers and admins can mark tasks as done", 403)
+    
     old_status = task.status
     task.status = status
+    
+    # Track when work started (to_do -> in_progress)
+    if status == 'in_progress' and old_status == 'to_do' and not task.started_at:
+        task.started_at = int(datetime.utcnow().timestamp())
+    
+    # Track when sent for review (in_progress -> for_review)
+    if status == 'for_review' and old_status == 'in_progress' and not task.reviewed_at:
+        task.reviewed_at = int(datetime.utcnow().timestamp())
+    
+    # Track completion time when task is marked as done (only managers)
+    if status == 'done' and old_status != 'done':
+        task.completed_at = int(datetime.utcnow().timestamp())
+    
+    # Clear timestamps if task is moved backwards in workflow
+    if status == 'to_do':
+        task.started_at = None
+        task.reviewed_at = None
+        task.completed_at = None
+    elif status == 'in_progress':
+        task.reviewed_at = None
+        task.completed_at = None
+    elif status == 'for_review':
+        task.completed_at = None
+    
     db.session.commit()
     
     # TODO: Send notification if status changed to for_review or done

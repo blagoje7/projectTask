@@ -44,7 +44,7 @@
         <button type="button" @click="$router.back()" class="btn-cancel">
           Cancel
         </button>
-        <button type="submit" class="btn-submit">
+        <button type="submit" class="primary">
           Create Project
         </button>
       </div>
@@ -119,19 +119,7 @@ onMounted(fetchTeams);
 .form-group input,
 .form-group textarea {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 14px;
   box-sizing: border-box;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--text-primary);
 }
 
 .teams-selector {
@@ -191,14 +179,5 @@ onMounted(fetchTeams);
 
 .btn-cancel:hover {
   background: var(--border-color);
-}
-
-.btn-submit {
-  background: var(--text-primary);
-  color: var(--bg-primary);
-}
-
-.btn-submit:hover {
-  opacity: 0.8;
 }
 </style>

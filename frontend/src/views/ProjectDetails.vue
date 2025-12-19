@@ -145,8 +145,21 @@
             <option value="to_do">To Do</option>
             <option value="in_progress">In Progress</option>
             <option value="for_review">For Review</option>
-            <option value="done">Done</option>
+            <option v-if="isManager" value="done">Done</option>
           </select>
+        </div>
+
+        <!-- Time Tracking Info (only shown if task is done) -->
+        <div v-if="selectedTask.status === 'done' && selectedTask.totalTime" class="time-tracking-section">
+          <hr class="divider" />
+          <div class="time-info">
+            <div><strong>Created:</strong> {{ formatDateTime(selectedTask.createdAt) }}</div>
+            <div v-if="selectedTask.startedAt"><strong>Started:</strong> {{ formatDateTime(selectedTask.startedAt) }}</div>
+            <div v-if="selectedTask.reviewedAt"><strong>Reviewed:</strong> {{ formatDateTime(selectedTask.reviewedAt) }}</div>
+            <div><strong>Completed:</strong> {{ formatDateTime(selectedTask.completedAt) }}</div>
+            <div v-if="selectedTask.timeWorked" class="time-worked"><strong>Active Work Time:</strong> <span class="highlight">{{ formatDuration(selectedTask.timeWorked) }}</span></div>
+            <div class="time-worked"><strong>Total Time:</strong> <span class="highlight">{{ formatDuration(selectedTask.totalTime) }}</span></div>
+          </div>
         </div>
 
         <button @click="selectedTask = null" class="btn-close">Close</button>
@@ -182,7 +195,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils/api';
 import { getUserRole, isAdminOrManager } from '../utils/auth';
-import { formatDate, formatStatus } from '../utils/formatters';
+import { formatDate, formatStatus, formatDuration, formatDateTime } from '../utils/formatters';
 import TaskCard from '../components/TaskCard.vue';
 
 const route = useRoute();
@@ -632,6 +645,38 @@ onMounted(() => {
   padding: 15px;
   background: var(--bg-secondary);
   border-radius: 6px;
+}
+
+.time-tracking-section {
+  margin: 20px 0;
+}
+
+.time-tracking-section .divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 20px 0;
+}
+
+.time-tracking-section .time-info {
+  padding: 15px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.time-tracking-section .time-info > div {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.time-worked {
+  font-size: 16px;
+  margin-top: 12px !important;
+}
+
+.time-worked .highlight {
+  color: var(--success-color);
+  font-weight: 600;
+  font-size: 18px;
 }
 
 .assignee-item {

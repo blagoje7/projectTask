@@ -6,7 +6,7 @@
       <h2>Create New Team</h2>
       <div class="form-group">
         <input v-model="newTeamName" placeholder="Team Name" required />
-        <button @click="createTeam" :disabled="!newTeamName">Create Team</button>
+        <button @click="createTeam" :disabled="!newTeamName" class="primary">Create Team</button>
       </div>
     </div>
     
@@ -20,7 +20,7 @@
       <div v-else class="team-card" v-for="team in teams" :key="team.teamId">
         <h3>{{ team.name }}</h3>
         <div class="team-actions">
-          <router-link :to="'/teams/' + team.teamId" class="btn-primary">Manage Members</router-link>
+          <router-link :to="'/teams/' + team.teamId" class="btn-link primary">Manage Members</router-link>
           <button @click="deleteTeam(team.teamId)" class="btn-danger">Delete Team</button>
         </div>
       </div>
@@ -110,23 +110,10 @@ onMounted(fetchTeams);
   color: var(--text-primary);
 }
 
-.form-group button {
-  padding: 10px 20px;
-  background: #42b983;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
 .form-group button:disabled {
   background: #ccc;
   cursor: not-allowed;
-}
-
-.form-group button:hover:not(:disabled) {
-  background: #359268;
+  opacity: 0.6;
 }
 
 .teams-list {
@@ -157,32 +144,28 @@ onMounted(fetchTeams);
   gap: 10px;
 }
 
-.btn-primary, .btn-danger {
+.btn-link {
   padding: 8px 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   text-decoration: none;
   font-size: 14px;
   display: inline-block;
 }
 
-.btn-primary {
-  background: #42b983;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #359268;
-}
-
 .btn-danger {
-  background: #e74c3c;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  background: var(--danger-color);
   color: white;
 }
 
 .btn-danger:hover {
-  background: #c0392b;
+  opacity: 0.8;
 }
 
 hr {

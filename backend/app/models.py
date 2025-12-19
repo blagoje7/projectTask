@@ -146,12 +146,25 @@ class Task(db.Model):
     created_at = db.Column(db.Integer, default=lambda: int(datetime.utcnow().timestamp()))
     created_by = db.Column(db.String(36), db.ForeignKey('user.user_id'), nullable=False)
     updated_at = db.Column(db.Integer, onupdate=lambda: int(datetime.utcnow().timestamp()))
+    started_at = db.Column(db.Integer, nullable=True)  # Timestamp when task moved to in_progress
+    reviewed_at = db.Column(db.Integer, nullable=True)  # Timestamp when task moved to for_review
+    completed_at = db.Column(db.Integer, nullable=True)  # Timestamp when task was marked as done
     
     # Relationships
     assignees = db.relationship('User', secondary=task_assignees, lazy='subquery',
         backref=db.backref('assigned_tasks', lazy=True))
     
     def to_dict(self):
+        # Calculate time worked: from in_progress (started_at) to for_review (reviewed_at)
+        time_worked = None
+        if self.reviewed_at and self.started_at:
+            time_worked = self.reviewed_at - self.started_at
+        
+        # Calculate total time: from creation to completion (done status)
+        total_time = None
+        if self.status == 'done' and self.completed_at and self.created_at:
+            total_time = self.completed_at - self.created_at
+        
         return {
             'taskId': self.task_id,
             'name': self.name,
@@ -167,5 +180,10 @@ class Task(db.Model):
             'createdAt': self.created_at,
             'createdBy': self.created_by,
             'updatedAt': self.updated_at,
+            'startedAt': self.started_at,
+            'reviewedAt': self.reviewed_at,
+            'completedAt': self.completed_at,
+            'timeWorked': time_worked,
+            'totalTime': total_time,
             'assignees': [{'userId': u.user_id, 'email': u.email, 'firstName': u.first_name, 'lastName': u.last_name} for u in self.assignees]
         }

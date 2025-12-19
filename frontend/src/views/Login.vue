@@ -13,16 +13,14 @@
             type="email"
             placeholder="email@domain.com" 
             required 
-            class="input-field"
           />
           <input 
             v-model="password" 
             type="password" 
             placeholder="password" 
             required 
-            class="input-field"
           />
-          <button type="submit" class="login-button">Log in</button>
+          <button type="submit" class="primary">Log in</button>
         </form>
         
         <div class="divider-container">
@@ -121,43 +119,18 @@ form {
   margin-bottom: 32px;
 }
 
-.input-field {
+form input {
   width: 100%;
   padding: 14px 18px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
   font-size: 15px;
-  color: var(--text-primary);
-  background: var(--card-bg);
-  transition: border-color 0.2s;
   box-sizing: border-box;
 }
 
-.input-field::placeholder {
-  color: var(--text-secondary);
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: var(--text-primary);
-}
-
-.login-button {
+form button {
   width: 100%;
   padding: 14px;
-  background: #000;
-  color: white;
-  border: none;
-  border-radius: 6px;
   font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
   margin-top: 8px;
-}
-
-.login-button:hover {
-  background: #333;
 }
 
 .divider-container {

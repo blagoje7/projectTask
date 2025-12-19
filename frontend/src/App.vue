@@ -57,46 +57,70 @@ onMounted(() => {
 
 <style>
 :root {
+  /* Jira Light Theme */
   --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #e0e0e0;
-  --text-primary: #000000;
-  --text-secondary: #666666;
-  --border-color: #e0e0e0;
-  --nav-bg: #eeeeee;
+  --bg-secondary: #F4F5F7; /* Jira Light Gray */
+  --bg-tertiary: #EBECF0;
+  --text-primary: #172B4D; /* Jira Dark Blue Text */
+  --text-secondary: #5E6C84;
+  --border-color: #DFE1E6;
+  --nav-bg: #ffffff;
   --card-bg: #ffffff;
-  --hover-bg: #f5f5f5;
-  --modal-overlay: rgba(0, 0, 0, 0.5);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --hover-bg: #EBECF0;
+  --modal-overlay: rgba(9, 30, 66, 0.54);
+  
+  /* Brand Colors */
+  --primary-color: #0052CC;
+  --primary-hover: #0065FF;
+  --success-color: #36B37E;
+  --warning-color: #FFAB00;
+  --danger-color: #FF5630;
+  --info-color: #42526E;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(9, 30, 66, 0.25);
+  --shadow-md: 0 3px 6px rgba(9, 30, 66, 0.25);
+  --shadow-lg: 0 8px 16px -4px rgba(9, 30, 66, 0.25);
 }
 
 [data-theme="dark"] {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2d2d2d;
-  --bg-tertiary: #404040;
-  --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --border-color: #404040;
-  --nav-bg: #2d2d2d;
-  --card-bg: #2d2d2d;
-  --hover-bg: #404040;
-  --modal-overlay: rgba(0, 0, 0, 0.8);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  /* Jira Dark Theme */
+  --bg-primary: #1D2125;
+  --bg-secondary: #22272B; /* Jira Dark Gray */
+  --bg-tertiary: #2C333A;
+  --text-primary: #B6C2CF;
+  --text-secondary: #8C9BAB;
+  --border-color: #454F59;
+  --nav-bg: #1D2125;
+  --card-bg: #22272B;
+  --hover-bg: #2C333A;
+  --modal-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Brand Colors (Adjusted for Dark Mode) */
+  --primary-color: #579DFF;
+  --primary-hover: #85B8FF;
+  --success-color: #6CC9A6;
+  --warning-color: #F5CD47;
+  --danger-color: #FF8F73;
+  --info-color: #A1BDD9;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 16px -4px rgba(0, 0, 0, 0.5);
 }
 
 * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
@@ -104,65 +128,84 @@ body {
   min-height: 100vh;
 }
 
+/* Navigation Styles */
 nav {
-  padding: 1rem;
-  background: var(--nav-bg);
+  background-color: var(--nav-bg);
   border-bottom: 1px solid var(--border-color);
+  padding: 0 20px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .nav-content {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 20px;
 }
 
-nav a {
-  margin: 0 0.5rem;
-  color: var(--text-primary);
+.nav-links a {
+  color: var(--text-secondary);
   text-decoration: none;
-}
-
-nav a:hover {
-  text-decoration: underline;
-}
-
-nav a.router-link-active {
-  font-weight: bold;
-}
-
-nav button {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-nav button:hover {
-  background: var(--hover-bg);
-}
-
-.theme-toggle {
-  font-size: 20px;
-  padding: 0.5rem 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 3px;
   transition: all 0.2s;
 }
 
+.nav-links a:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--primary-color);
+}
+
+.nav-links a.router-link-active {
+  color: var(--primary-color);
+  background-color: var(--bg-secondary);
+}
+
+.nav-links button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.nav-links button:hover {
+  color: var(--danger-color);
+  background-color: var(--bg-tertiary);
+  border-radius: 3px;
+}
+
+.theme-toggle {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+
 .theme-toggle:hover {
-  background: var(--hover-bg);
-  transform: scale(1.1);
+  background-color: var(--bg-tertiary);
 }
 </style>

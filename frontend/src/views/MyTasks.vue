@@ -55,8 +55,8 @@
             <div v-if="activeMenu === task.taskId" class="context-menu">
               <div @click="showTaskDetails(task)" class="menu-item">Prikaži detalje</div>
               <div @click="viewAssignedUsers(task)" class="menu-item">Prikaži zaduzene</div>
-              <div @click="changePriority(task)" class="menu-item">Promeni prioritet</div>
-              <div @click="changeDeadline(task)" class="menu-item">Promeni datum</div>
+              <div v-if="userRole === 'admin' || userRole === 'manager'" @click="changePriority(task)" class="menu-item">Promeni prioritet</div>
+              <div v-if="userRole === 'admin' || userRole === 'manager'" @click="changeDeadline(task)" class="menu-item">Promeni datum</div>
             </div>
           </div>
         </div>
@@ -76,7 +76,7 @@
             <option value="to_do">To Do</option>
             <option value="in_progress">In Progress</option>
             <option value="for_review">For Review</option>
-            <option value="done">Done</option>
+            <!-- Only managers can set status to done -->
           </select>
         </div>
 
@@ -139,8 +139,8 @@
                 <div v-if="activeMenu === task.taskId" class="context-menu">
                   <div @click="showTaskDetails(task)" class="menu-item">Prikaži detalje</div>
                   <div @click="viewAssignedUsers(task)" class="menu-item">Prikaži zaduzene</div>
-                  <div @click="changePriority(task)" class="menu-item">Promeni prioritet</div>
-                  <div @click="changeDeadline(task)" class="menu-item">Promeni datum</div>
+                  <div v-if="userRole === 'admin' || userRole === 'manager'" @click="changePriority(task)" class="menu-item">Promeni prioritet</div>
+                  <div v-if="userRole === 'admin' || userRole === 'manager'" @click="changeDeadline(task)" class="menu-item">Promeni datum</div>
                 </div>
               </div>
             </td>
@@ -174,6 +174,30 @@
         <div class="detail-row">
           <strong>Deadline:</strong> {{ formatDate(selectedTask?.deadline) }}
         </div>
+        
+        <!-- Time Tracking Info (only shown if task is done) -->
+        <div v-if="selectedTask?.status === 'done' && selectedTask?.totalTime" class="time-tracking-section">
+          <hr class="divider" />
+          <div class="detail-row">
+            <strong>Created:</strong> {{ formatDateTime(selectedTask?.createdAt) }}
+          </div>
+          <div class="detail-row" v-if="selectedTask?.startedAt">
+            <strong>Started:</strong> {{ formatDateTime(selectedTask?.startedAt) }}
+          </div>
+          <div class="detail-row" v-if="selectedTask?.reviewedAt">
+            <strong>Reviewed:</strong> {{ formatDateTime(selectedTask?.reviewedAt) }}
+          </div>
+          <div class="detail-row">
+            <strong>Completed:</strong> {{ formatDateTime(selectedTask?.completedAt) }}
+          </div>
+          <div class="detail-row time-worked" v-if="selectedTask?.timeWorked">
+            <strong>Active Work Time:</strong> <span class="highlight">{{ formatDuration(selectedTask?.timeWorked) }}</span>
+          </div>
+          <div class="detail-row time-worked">
+            <strong>Total Time:</strong> <span class="highlight">{{ formatDuration(selectedTask?.totalTime) }}</span>
+          </div>
+        </div>
+        
         <button @click="showDetailsModal = false" class="btn-close">Close</button>
       </div>
     </div>
@@ -237,7 +261,8 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiGet, apiPut } from '../utils/api';
-import { formatDate, formatStatus } from '../utils/formatters';
+import { getUserRole } from '../utils/auth';
+import { formatDate, formatStatus, formatDuration, formatDateTime } from '../utils/formatters';
 
 const router = useRouter();
 const tasks = ref([]);
@@ -245,6 +270,7 @@ const viewMode = ref('grid');
 const statusFilter = ref('');
 const priorityFilter = ref('');
 const activeMenu = ref(null);
+const userRole = ref(getUserRole());
 const showDetailsModal = ref(false);
 const showUsersModal = ref(false);
 const showPriorityModal = ref(false);
@@ -407,27 +433,36 @@ onMounted(fetchMyTasks);
 
 .view-toggles {
   display: flex;
-  gap: 8px;
+  gap: 4px;
+  background: var(--bg-secondary);
+  padding: 2px;
+  border-radius: 3px;
 }
 
 .view-btn {
-  padding: 8px 16px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg);
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 18px;
-  transition: all 0.2s;
+  font-size: 16px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .view-btn:hover {
-  background: var(--bg-secondary);
+  background: rgba(9, 30, 66, 0.08);
+  color: var(--text-primary);
 }
 
 .view-btn.active {
-  background: #000;
-  color: white;
-  border-color: var(--text-primary);
+  background: var(--card-bg);
+  color: var(--primary-color);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .empty-state {
@@ -559,6 +594,28 @@ onMounted(fetchMyTasks);
 .detail-row strong {
   display: inline-block;
   min-width: 120px;
+}
+
+.time-tracking-section {
+  margin-top: 20px;
+  padding-top: 16px;
+}
+
+.time-tracking-section .divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 16px 0;
+}
+
+.time-worked {
+  font-size: 16px;
+  margin-top: 12px;
+}
+
+.time-worked .highlight {
+  color: var(--success-color);
+  font-weight: 600;
+  font-size: 18px;
 }
 
 .users-list {

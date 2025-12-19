@@ -19,8 +19,7 @@
             </div>
             <button @click.stop="toggleProjectMenu(project.projectId)" class="project-menu-btn">⋯</button>
             <div v-if="activeProjectMenu === project.projectId" class="project-context-menu">
-              <div @click="viewMyTasks(project)" class="menu-item">📄 My Tasks</div>
-              <div @click="viewProjectDetails(project)" class="menu-item">📊 Project Details</div>
+              <div @click="viewProjectDetails(project)" class="menu-item">Project Details</div>
             </div>
           </div>
         </div>
@@ -103,6 +102,21 @@
         </div>
         
         <div v-else class="tasks-toolbar">
+          <div class="task-filter-tabs">
+            <button 
+              :class="['filter-tab', { active: taskFilter === 'all' }]"
+              @click="taskFilter = 'all'"
+            >
+              All Tasks ({{ allTasks.length }})
+            </button>
+            <button 
+              :class="['filter-tab', { active: taskFilter === 'my' }]"
+              @click="taskFilter = 'my'"
+            >
+              My Tasks ({{ myTasksCount }})
+            </button>
+          </div>
+          
           <div class="search-filter">
             <input type="text" v-model="searchQuery" placeholder="Search tasks..." />
             <button class="filter-btn">
@@ -154,6 +168,14 @@
               <tr v-for="task in filteredTasks" :key="task.taskId" class="task-row">
                 <!-- Task Actions (Context Menu Trigger) -->
                 <td class="task-actions">
+                  <button 
+                    v-if="task.status === 'to_do' && task.assignees?.some(a => a.userId === getUserId())"
+                    @click="startTask(task, $event)" 
+                    class="start-btn"
+                    title="Start working on this task"
+                  >
+                    ▶
+                  </button>
                   <button @click.stop="toggleMenu(task.taskId, $event)" class="menu-btn">⋯</button>
                 </td>
                 <td class="task-id">{{ task.jiraKey || `TASK-${task.taskId.substring(0, 5)}` }}</td>
@@ -172,6 +194,19 @@
                 <td class="task-date">{{ formatDate(task.deadline) }}</td>
                 <!-- Assignees Dropdown (List View) -->
                 <td class="task-assignees">
+                  <div class="assignees-display">
+                    <span v-if="!task.assignees || task.assignees.length === 0" class="no-assignees">
+                      Unassigned
+                    </span>
+                    <div v-else class="assignees-compact">
+                      <span v-for="(assignee, index) in task.assignees.slice(0, 2)" :key="assignee.userId" class="assignee-chip-sm">
+                        {{ assignee.firstName[0] }}{{ assignee.lastName[0] }}
+                      </span>
+                      <span v-if="task.assignees.length > 2" class="more-assignees">
+                        +{{ task.assignees.length - 2 }}
+                      </span>
+                    </div>
+                  </div>
                   <div class="assignees-dropdown-container table-dropdown">
                     <div class="assignees-trigger" @click.stop="toggleAssigneesDropdown(task.taskId)">
                       {{ task.assignees ? task.assignees.length : 0 }} ▼
@@ -198,15 +233,25 @@
             <!-- Card Header & Actions -->
             <div class="card-header">
               <span class="task-id">{{ task.jiraKey || `TASK-${task.taskId.substring(0, 5)}` }}</span>
-              <button @click.stop="toggleMenu(task.taskId, $event)" class="menu-btn" :ref="`menuBtn_${task.taskId}`">⋯</button>
+              <div class="card-actions">
+                <button 
+                  v-if="task.status === 'to_do' && task.assignees?.some(a => a.userId === getUserId())"
+                  @click="startTask(task, $event)" 
+                  class="start-btn-card"
+                  title="Start working on this task"
+                >
+                  ▶ Start
+                </button>
+                <button @click.stop="toggleMenu(task.taskId, $event)" class="menu-btn" :ref="`menuBtn_${task.taskId}`">⋯</button>
+              </div>
               <div v-if="activeMenu === task.taskId" 
                    :ref="'contextMenu_' + task.taskId"
                    class="context-menu" 
                    :style="menuPosition"
                    @mouseleave="showSubmenu = null">
                 <div @click="viewTaskDetails(task)">View Details</div>
-                <div @click="editTask(task)">Edit Task</div>
-                <div class="submenu-item" 
+                <div v-if="userRole === 'admin' || userRole === 'manager'" @click="editTask(task)">Edit Task</div>
+                <div v-if="userRole === 'admin' || userRole === 'manager'" class="submenu-item" 
                      @mouseenter="checkSubmenuSpace($event, 'priority')"
                      :ref="'submenuItem_priority_' + task.taskId">
                   <span>Change Priority</span>
@@ -228,14 +273,27 @@
                     <div @click="updateTaskStatus(task, 'to_do')">To Do</div>
                     <div @click="updateTaskStatus(task, 'in_progress')">In Progress</div>
                     <div @click="updateTaskStatus(task, 'for_review')">For Review</div>
-                    <div @click="updateTaskStatus(task, 'done')">Done</div>
+                    <div v-if="userRole === 'admin' || userRole === 'manager'" @click="updateTaskStatus(task, 'done')">Done</div>
                   </div>
                 </div>
-                <div @click="deleteTask(task)" class="delete-item">Delete Task</div>
+                <div v-if="userRole === 'admin' || userRole === 'manager'" @click="deleteTask(task)" class="delete-item">Delete Task</div>
               </div>
             </div>
             <h4>{{ task.name }}</h4>
             <p>{{ task.description || 'No description' }}</p>
+            
+            <!-- Assignees Display -->
+            <div class="assignees-section" v-if="task.assignees && task.assignees.length > 0">
+              <div class="assignees-label">Assigned to:</div>
+              <div class="assignees-chips">
+                <span v-for="assignee in task.assignees" :key="assignee.userId" class="assignee-chip" :title="assignee.firstName + ' ' + assignee.lastName">
+                  {{ assignee.firstName[0] }}{{ assignee.lastName[0] }}
+                </span>
+              </div>
+            </div>
+            <div class="assignees-section" v-else>
+              <span class="no-assignees">Unassigned</span>
+            </div>
             
             <!-- Assignees Dropdown -->
             <div class="assignees-dropdown-container">
@@ -335,6 +393,24 @@
         <p><strong>Status:</strong> {{ formatStatus(detailTask.status) }}</p>
         <p><strong>Deadline:</strong> {{ formatDate(detailTask.deadline) }}</p>
         <p><strong>Assignees:</strong> {{ detailTask.assigneeCount || 0 }}</p>
+        
+        <!-- Time Tracking Info (only shown if task is done) -->
+        <div v-if="detailTask.status === 'done' && detailTask.totalTime" class="time-tracking-section">
+          <hr class="divider" />
+          <p><strong>Created:</strong> {{ formatDateTime(detailTask.createdAt) }}</p>
+          <p v-if="detailTask.startedAt"><strong>Started:</strong> {{ formatDateTime(detailTask.startedAt) }}</p>
+          <p v-if="detailTask.reviewedAt"><strong>Reviewed:</strong> {{ formatDateTime(detailTask.reviewedAt) }}</p>
+          <p><strong>Completed:</strong> {{ formatDateTime(detailTask.completedAt) }}</p>
+          <div class="time-metrics">
+            <p v-if="detailTask.timeWorked" class="time-worked">
+              <strong>Active Work Time:</strong> <span class="highlight">{{ formatDuration(detailTask.timeWorked) }}</span>
+            </p>
+            <p class="time-worked">
+              <strong>Total Time:</strong> <span class="highlight">{{ formatDuration(detailTask.totalTime) }}</span>
+            </p>
+          </div>
+        </div>
+        
         <button @click="detailTask = null" class="btn-close">Close</button>
       </div>
     </div>
@@ -471,7 +547,7 @@ import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiGet, apiPut, apiDelete, API_BASE_URL } from '../utils/api';
 import { getUserRole, getUsername, getUserId } from '../utils/auth';
-import { formatDate, formatStatus } from '../utils/formatters';
+import { formatDate, formatStatus, formatDuration, formatDateTime } from '../utils/formatters';
 
 const router = useRouter();
 
@@ -507,6 +583,7 @@ const searchQuery = ref('');
 const projectSearchQuery = ref('');
 const teamSearchQuery = ref('');
 const memberSearchQuery = ref('');
+const taskFilter = ref('all'); // 'all' or 'my'
 
 // Modals
 const detailTask = ref(null);
@@ -560,6 +637,14 @@ const filteredMembers = computed(() => {
 const filteredTasks = computed(() => {
   let tasks = allTasks.value;
   
+  // Filter by assignee if 'My Tasks' is selected
+  if (taskFilter.value === 'my') {
+    const currentUserId = getUserId();
+    tasks = tasks.filter(t => 
+      t.assignees && t.assignees.some(a => a.userId === currentUserId)
+    );
+  }
+  
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     tasks = tasks.filter(t => 
@@ -578,6 +663,13 @@ const projectProgress = computed(() => {
 
 const doneTasks = computed(() => {
   return allTasks.value.filter(t => t.status === 'done').length;
+});
+
+const myTasksCount = computed(() => {
+  const currentUserId = getUserId();
+  return allTasks.value.filter(t => 
+    t.assignees && t.assignees.some(a => a.userId === currentUserId)
+  ).length;
 });
 
 const totalTasks = computed(() => {
@@ -961,7 +1053,19 @@ const updateTaskStatus = async (task, status) => {
     showSubmenu.value = null;
   } catch (error) {
     console.error(error);
-    alert('Error changing status');
+    alert(error.response?.data?.error || 'Error changing status');
+  }
+};
+
+// Quick start task (set to in_progress)
+const startTask = async (task, event) => {
+  event.stopPropagation();
+  try {
+    await apiPut(`/tasks/${task.taskId}/status`, { status: 'in_progress' });
+    task.status = 'in_progress';
+  } catch (error) {
+    console.error('Failed to start task:', error);
+    alert(error.response?.data?.error || 'Failed to start task');
   }
 };
 
@@ -1102,34 +1206,42 @@ onMounted(() => {
 
 .left-sidebar {
   width: 250px;
-  background: var(--card-bg);
-  border-right: 1px solid #e0e0e0;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
   overflow-y: auto;
   padding: 20px 0;
 }
 
 .sidebar-section {
   margin-bottom: 30px;
-  padding: 0 20px;
+  padding: 0 16px;
 }
 
 .sidebar-section h3 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   margin-bottom: 10px;
   color: var(--text-secondary);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .sidebar-search {
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px;
   margin-bottom: 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 12px;
-  background: var(--bg-primary);
+  border: 2px solid transparent;
+  border-radius: 3px;
+  font-size: 14px;
+  background: rgba(9, 30, 66, 0.04);
   color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.sidebar-search:focus {
+  background: #fff;
+  border-color: var(--primary-color);
+  outline: none;
 }
 
 .sidebar-search::placeholder {
@@ -1140,21 +1252,22 @@ onMounted(() => {
 .team-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
 }
 
 .project-item,
 .team-item {
-  padding: 10px 12px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border-radius: 3px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.1s;
   font-size: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   position: relative;
   justify-content: space-between;
+  color: var(--text-primary);
 }
 
 .project-main {
@@ -1175,22 +1288,23 @@ onMounted(() => {
 .team-menu-btn {
   background: none;
   border: none;
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2px 6px;
   color: var(--text-secondary);
   opacity: 0;
   transition: opacity 0.2s;
+  border-radius: 3px;
 }
 
 .project-item:hover .project-menu-btn,
 .team-item:hover .team-menu-btn {
   opacity: 1;
-  color: var(--text-secondary)
 }
 
 .project-menu-btn:hover,
 .team-menu-btn:hover {
+  background-color: rgba(9, 30, 66, 0.08);
   color: var(--text-primary);
 }
 
@@ -1201,8 +1315,8 @@ onMounted(() => {
   right: 0;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 3px;
+  box-shadow: var(--shadow-md);
   z-index: 1000;
   min-width: 180px;
   margin-top: 4px;
@@ -1210,60 +1324,57 @@ onMounted(() => {
 
 .project-context-menu .menu-item,
 .team-context-menu .menu-item {
-  padding: 10px 16px;
+  padding: 8px 16px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.1s;
   font-size: 14px;
   white-space: nowrap;
+  color: var(--text-primary);
 }
 
 .project-context-menu .menu-item:hover,
 .team-context-menu .menu-item:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
 }
 
 .project-context-menu .menu-item:first-child,
 .team-context-menu .menu-item:first-child {
-  border-radius: 6px 6px 0 0;
+  border-radius: 3px 3px 0 0;
 }
 
 .project-context-menu .menu-item:last-child,
 .team-context-menu .menu-item:last-child {
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 3px 3px;
 }
 
 .project-item.active,
 .team-item.active {
-  background: #000;
-  color: white;
-}
-
-.project-context-menu .menu-item:last-child {
-  border-radius: 0 0 6px 6px;
+  background: var(--bg-tertiary);
+  color: var(--primary-color);
+  font-weight: 500;
 }
 
 .project-item:hover,
 .team-item:hover {
-  background: var(--bg-secondary);
-}
-
-.project-item.active,
-.team-item.active {
-  background: #000;
-  color: white;
+  background: var(--bg-tertiary);
 }
 
 .project-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #666;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--text-secondary);
   margin-right: 8px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: white;
 }
 
 .project-indicator.active {
-  background: #4caf50;
+  background: var(--primary-color);
 }
 
 .team-indicator,
@@ -1271,14 +1382,14 @@ onMounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #666;
+  background: var(--text-secondary);
   margin-right: 8px;
   flex-shrink: 0;
 }
 
 .team-indicator.active,
 .member-indicator.active {
-  background: #4caf50;
+  background: var(--success-color);
 }
 
 .member-list {
@@ -1370,6 +1481,39 @@ onMounted(() => {
   padding: 15px;
   background: var(--card-bg);
   border-radius: 8px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.task-filter-tabs {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-secondary);
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.filter-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.filter-tab:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.filter-tab.active {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
 }
 
 .search-filter {
@@ -1403,33 +1547,36 @@ onMounted(() => {
 
 .view-toggles {
   display: flex;
-  gap: 5px;
+  gap: 4px;
+  background: var(--bg-secondary);
+  padding: 2px;
+  border-radius: 3px;
 }
 
 .view-btn {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg);
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 24px;
-  color: var(--text-primary);
-  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  transition: all 0.2s ease;
 }
 
 .view-btn:hover {
-  background: var(--bg-secondary);
+  background: rgba(9, 30, 66, 0.08);
+  color: var(--text-primary);
 }
 
 .view-btn.active {
-  background: var(--text-primary);
-  color: var(--bg-primary);
-  border-color: var(--text-primary);
+  background: var(--card-bg);
+  color: var(--primary-color);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* List View */
@@ -1540,10 +1687,119 @@ onMounted(() => {
   font-size: 13px;
 }
 
+/* Assignee Display Styles */
+.assignees-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.assignee-chip-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.no-assignees-text {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.assignees-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.assignee-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-right: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.no-assignees {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.more-assignees {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
 .task-actions {
   position: relative;
-  width: 40px;
+  width: 80px;
   text-align: center;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.start-btn {
+  background: var(--primary-color);
+  border: none;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.start-btn:hover {
+  background: #0052cc;
+  transform: scale(1.05);
+}
+
+.start-btn:active {
+  transform: scale(0.95);
 }
 
 .menu-btn {
@@ -1675,6 +1931,37 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 12px;
   position: relative;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.start-btn-card {
+  background: var(--primary-color);
+  border: none;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.start-btn-card:hover {
+  background: #0052cc;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.start-btn-card:active {
+  transform: translateY(0);
 }
 
 .task-card h4 {
@@ -2004,28 +2291,65 @@ onMounted(() => {
 
 .modal-content {
   background: var(--card-bg);
-  padding: 30px;
-  border-radius: 8px;
+  padding: 24px;
+  border-radius: 3px;
   max-width: 500px;
   width: 90%;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
 }
 
 .modal-content h2 {
   margin: 0 0 20px 0;
+  font-size: 20px;
+  color: var(--text-primary);
 }
 
 .modal-content p {
   margin: 10px 0;
+  color: var(--text-primary);
+}
+
+.time-tracking-section {
+  margin-top: 20px;
+  padding-top: 16px;
+}
+
+.time-tracking-section .divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 16px 0;
+}
+
+.time-tracking-section p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.time-worked {
+  font-size: 16px;
+  margin-top: 12px;
+}
+
+.time-worked .highlight {
+  color: var(--success-color);
+  font-weight: 600;
+  font-size: 18px;
 }
 
 .btn-close {
   margin-top: 20px;
-  padding: 10px 20px;
-  background: #000;
-  color: white;
+  padding: 8px 16px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-close:hover {
+  background: var(--hover-bg);
 }
 
 .edit-modal {
@@ -2038,21 +2362,32 @@ onMounted(() => {
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--text-primary);
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
 }
 
 .form-input,
 .form-textarea,
 .form-select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  padding: 8px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 3px;
   font-size: 14px;
   font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: var(--primary-color);
+  outline: none;
 }
 
 .form-textarea {
@@ -2073,33 +2408,33 @@ onMounted(() => {
 }
 
 .btn-save {
-  padding: 10px 24px;
-  background: #000;
+  padding: 8px 16px;
+  background: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
 }
 
 .btn-save:hover {
-  background: #333;
+  background: var(--primary-hover);
 }
 
 .btn-cancel {
-  padding: 10px 24px;
-  background: #e0e0e0;
-  color: #333;
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--text-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
 }
 
 .btn-cancel:hover {
-  background: #d0d0d0;
+  background: var(--bg-tertiary);
 }
 
 
@@ -2131,16 +2466,19 @@ onMounted(() => {
 
 .stat-card {
   background: var(--card-bg);
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 24px;
+  border-radius: 3px;
+  box-shadow: var(--shadow-sm);
   text-align: center;
+  border: 1px solid var(--border-color);
 }
 
 .stat-card h3 {
   margin: 0 0 15px 0;
-  font-size: 18px;
-  color: var(--text-primary);
+  font-size: 16px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .stat-number {
@@ -2153,7 +2491,7 @@ onMounted(() => {
 .stat-link {
   display: inline-block;
   margin-top: 15px;
-  color: var(--text-primary);
+  color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
 }
@@ -2172,20 +2510,20 @@ onMounted(() => {
 .user-details-sidebar {
   width: 320px;
   background: var(--card-bg);
-  border-left: 1px solid #e0e0e0;
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   position: fixed;
   right: 0;
   top: 0;
   bottom: 0;
-  z-index: 50;
-  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1001;
+  box-shadow: var(--shadow-lg);
 }
 
 .user-details-header {
   padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2193,13 +2531,14 @@ onMounted(() => {
 
 .user-details-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
+  color: var(--text-primary);
 }
 
 .btn-close-sidebar {
-  background: none;
+  background: transparent;
   border: none;
-  font-size: 24px;
+  font-size: 20px;
   cursor: pointer;
   color: var(--text-secondary);
   width: 32px;
@@ -2207,11 +2546,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 3px;
+  transition: background 0.2s, color 0.2s;
 }
 
 .btn-close-sidebar:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .user-details-content {
@@ -2234,14 +2575,14 @@ onMounted(() => {
 
 .detail-group p {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 
 /* Member Item Active State */
 .member-item.active {
-  background: #e3f2fd;
-  border-left: 3px solid #1976d2;
+  background: var(--bg-tertiary);
+  border-left: 3px solid var(--primary-color);
 }
 
 
@@ -2254,7 +2595,7 @@ onMounted(() => {
 .assignees-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 8px;
   margin: 20px 0;
   max-height: 400px;
   overflow-y: auto;
@@ -2263,56 +2604,62 @@ onMounted(() => {
 .assignee-item {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 15px;
+  gap: 12px;
+  padding: 8px 12px;
   background: var(--bg-secondary);
-  border-radius: 8px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+.assignee-item:hover {
+  background: var(--bg-tertiary);
 }
 
 .assignee-avatar {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--info-color);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
-  font-size: 18px;
+  font-weight: 600;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
 .assignee-info {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
 }
 
 .assignee-info strong {
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .assignee-email {
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .assignees-modal .empty-state {
   text-align: center;
   padding: 40px;
-  color: #999;
+  color: var(--text-secondary);
 }
 
 /* Edit Task Modal Assignee List */
 .assignee-list {
   max-height: 150px;
   overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border: 2px solid var(--border-color);
+  border-radius: 3px;
   padding: 10px;
   margin-top: 5px;
+  background: var(--bg-primary);
 }
 
 .assignee-checkbox {

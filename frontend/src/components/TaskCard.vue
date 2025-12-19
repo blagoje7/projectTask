@@ -56,13 +56,19 @@ defineEmits(['view', 'delete']);
 
 <style scoped>
 .task-item {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 3px;
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 12px;
+  border: 1px solid var(--border-color);
+  transition: box-shadow 0.2s;
+}
+
+.task-item:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .task-header {
@@ -73,95 +79,115 @@ defineEmits(['view', 'delete']);
 
 .task-header h3 {
   margin: 0;
-  font-size: 1.1rem;
-  color: #2c3e50;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
 }
 
 .task-description {
-  color: #666;
-  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-size: 12px;
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-height: 1.5;
 }
 
 .task-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  font-size: 0.85rem;
+  gap: 8px;
+  font-size: 11px;
+  align-items: center;
 }
 
 .priority-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Using hardcoded colors for badges to ensure visibility, but could be variables */
+.priority-high { background: #FFEBE6; color: #BF2600; } /* Jira Red */
+.priority-medium { background: #FFFAE6; color: #FF8B00; } /* Jira Orange */
+.priority-low { background: #E3FCEF; color: #006644; } /* Jira Green */
+
+[data-theme="dark"] .priority-high { background: #42221F; color: #FF8F73; }
+[data-theme="dark"] .priority-medium { background: #332E1B; color: #F5CD47; }
+[data-theme="dark"] .priority-low { background: #1C3329; color: #6CC9A6; }
+
+.status-badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.priority-high { background: #fee2e2; color: #dc2626; }
-.priority-medium { background: #fef3c7; color: #d97706; }
-.priority-low { background: #d1fae5; color: #059669; }
+.status-in_progress { background: #DEEBFF; color: #0747A6; }
+[data-theme="dark"] .status-in_progress { background: #192B4D; color: #579DFF; }
 
-.status-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  background: #e5e7eb;
-  color: #374151;
-}
-
-.status-todo { background: #f3f4f6; }
-.status-in_progress { background: #dbeafe; color: #1e40af; }
-.status-done { background: #d1fae5; color: #065f46; }
+.status-done { background: #E3FCEF; color: #006644; }
+[data-theme="dark"] .status-done { background: #1C3329; color: #6CC9A6; }
 
 .epic-tag {
-  background: #f3e8ff;
-  color: #7e22ce;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  background: #EAE6FF;
+  color: #403294;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
 }
+[data-theme="dark"] .epic-tag { background: #28243D; color: #9F8FEF; }
 
 .deadline {
-  color: #dc2626;
+  color: var(--danger-color);
+  font-weight: 500;
 }
 
 .assignees {
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .task-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
   margin-top: auto;
 }
 
 .btn-view, .btn-delete {
-  padding: 0.5rem 1rem;
+  padding: 6px 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 12px;
   flex: 1;
+  font-weight: 500;
+  transition: background 0.1s;
 }
 
 .btn-view {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .btn-view:hover {
-  background: #e5e7eb;
+  background: var(--hover-bg);
 }
 
 .btn-delete {
-  background: #fee2e2;
-  color: #dc2626;
+  background: transparent;
+  color: var(--danger-color);
+  border: 1px solid var(--danger-color);
 }
 
 .btn-delete:hover {
-  background: #fecaca;
+  background: var(--danger-color);
+  color: white;
 }
 </style>
