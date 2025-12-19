@@ -381,36 +381,54 @@
 
     <!-- Task Detail Modal -->
     <div v-if="detailTask" class="modal-overlay" @click.self="detailTask = null">
-      <div class="modal-content">
+      <div class="modal-content" @click.stop>
         <h2>{{ detailTask.name }}</h2>
-        <p><strong>ID:</strong> {{ detailTask.jiraKey || detailTask.taskId }}</p>
-        <p><strong>Description:</strong> {{ detailTask.description || 'No description' }}</p>
-        <p><strong>Priority:</strong> 
-          <span :class="['priority-badge', 'priority-' + detailTask.priority]">
-            {{ detailTask.priority }}
-          </span>
-        </p>
-        <p><strong>Status:</strong> {{ formatStatus(detailTask.status) }}</p>
-        <p><strong>Deadline:</strong> {{ formatDate(detailTask.deadline) }}</p>
-        <p><strong>Assignees:</strong> {{ detailTask.assigneeCount || 0 }}</p>
+        <p>{{ detailTask.description || 'No description' }}</p>
         
+        <div class="task-detail-meta">
+          <div><strong>Priority:</strong> {{ detailTask.priority }}</div>
+          <div><strong>Status:</strong> {{ formatStatus(detailTask.status) }}</div>
+          <div v-if="detailTask.deadline">
+            <strong>Deadline:</strong> {{ formatDate(detailTask.deadline) }}
+          </div>
+          <div v-if="detailTask.epicName">
+            <strong>Epic:</strong> {{ detailTask.epicName }}
+          </div>
+        </div>
+
+        <div class="assignees-section">
+          <strong>Assignees:</strong>
+          <div v-if="!detailTask.assignees || detailTask.assignees.length === 0" class="no-assignees">
+            No assignees
+          </div>
+          <div v-else v-for="assignee in detailTask.assignees" :key="assignee.userId" class="assignee-item">
+            {{ assignee.firstName }} {{ assignee.lastName }} ({{ assignee.email }})
+          </div>
+        </div>
+
+        <div class="status-update">
+          <label><strong>Update Status:</strong></label>
+          <select v-model="detailTask.status" @change="updateTaskStatusFromModal">
+            <option value="to_do">To Do</option>
+            <option value="in_progress">In Progress</option>
+            <option value="for_review">For Review</option>
+            <option v-if="userRole === 'admin' || userRole === 'manager'" value="done">Done</option>
+          </select>
+        </div>
+
         <!-- Time Tracking Info (only shown if task is done) -->
         <div v-if="detailTask.status === 'done' && detailTask.totalTime" class="time-tracking-section">
           <hr class="divider" />
-          <p><strong>Created:</strong> {{ formatDateTime(detailTask.createdAt) }}</p>
-          <p v-if="detailTask.startedAt"><strong>Started:</strong> {{ formatDateTime(detailTask.startedAt) }}</p>
-          <p v-if="detailTask.reviewedAt"><strong>Reviewed:</strong> {{ formatDateTime(detailTask.reviewedAt) }}</p>
-          <p><strong>Completed:</strong> {{ formatDateTime(detailTask.completedAt) }}</p>
-          <div class="time-metrics">
-            <p v-if="detailTask.timeWorked" class="time-worked">
-              <strong>Active Work Time:</strong> <span class="highlight">{{ formatDuration(detailTask.timeWorked) }}</span>
-            </p>
-            <p class="time-worked">
-              <strong>Total Time:</strong> <span class="highlight">{{ formatDuration(detailTask.totalTime) }}</span>
-            </p>
+          <div class="time-info">
+            <div><strong>Created:</strong> {{ formatDateTime(detailTask.createdAt) }}</div>
+            <div v-if="detailTask.startedAt"><strong>Started:</strong> {{ formatDateTime(detailTask.startedAt) }}</div>
+            <div v-if="detailTask.reviewedAt"><strong>Reviewed:</strong> {{ formatDateTime(detailTask.reviewedAt) }}</div>
+            <div><strong>Completed:</strong> {{ formatDateTime(detailTask.completedAt) }}</div>
+            <div v-if="detailTask.timeWorked" class="time-worked"><strong>Active Work Time:</strong> <span class="highlight">{{ formatDuration(detailTask.timeWorked) }}</span></div>
+            <div class="time-worked"><strong>Total Time:</strong> <span class="highlight">{{ formatDuration(detailTask.totalTime) }}</span></div>
           </div>
         </div>
-        
+
         <button @click="detailTask = null" class="btn-close">Close</button>
       </div>
     </div>
@@ -1066,6 +1084,24 @@ const startTask = async (task, event) => {
   } catch (error) {
     console.error('Failed to start task:', error);
     alert(error.response?.data?.error || 'Failed to start task');
+  }
+};
+
+// Update task status from detail modal
+const updateTaskStatusFromModal = async () => {
+  try {
+    await apiPut(`/tasks/${detailTask.value.taskId}/status`, {
+      status: detailTask.value.status
+    });
+    
+    // Update the task in the list
+    const task = allTasks.value.find(t => t.taskId === detailTask.value.taskId);
+    if (task) {
+      task.status = detailTask.value.status;
+    }
+  } catch (error) {
+    console.error('Failed to update task status:', error);
+    alert(error.response?.data?.error || 'Failed to update task status');
   }
 };
 
@@ -2321,6 +2357,17 @@ onMounted(() => {
   margin: 16px 0;
 }
 
+.time-tracking-section .time-info {
+  padding: 15px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.time-tracking-section .time-info > div {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
 .time-tracking-section p {
   margin: 8px 0;
   font-size: 14px;
@@ -2335,6 +2382,42 @@ onMounted(() => {
   color: var(--success-color);
   font-weight: 600;
   font-size: 18px;
+}
+
+.task-detail-meta, .assignees-section, .status-update {
+  margin: 20px 0;
+  padding: 15px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.task-detail-meta > div {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.assignee-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.assignee-item:last-child {
+  border-bottom: none;
+}
+
+.status-update label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.status-update select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
 }
 
 .btn-close {
