@@ -147,23 +147,38 @@ class Task(db.Model):
     created_by = db.Column(db.String(36), db.ForeignKey('user.user_id'), nullable=False)
     updated_at = db.Column(db.Integer, onupdate=lambda: int(datetime.utcnow().timestamp()))
     started_at = db.Column(db.Integer, nullable=True)  # Timestamp when task moved to in_progress
+    started_by = db.Column(db.String(36), db.ForeignKey('user.user_id'), nullable=True)  # User who started the task
     reviewed_at = db.Column(db.Integer, nullable=True)  # Timestamp when task moved to for_review
+    reviewed_by = db.Column(db.String(36), db.ForeignKey('user.user_id'), nullable=True)  # User who sent for review
     completed_at = db.Column(db.Integer, nullable=True)  # Timestamp when task was marked as done
+    completed_by = db.Column(db.String(36), db.ForeignKey('user.user_id'), nullable=True)  # User who completed the task
+    accumulated_work_time = db.Column(db.Integer, default=0, nullable=False)  # Total seconds spent in in_progress status
+    last_progress_start = db.Column(db.Integer, nullable=True)  # Track current in_progress session start
     
     # Relationships
     assignees = db.relationship('User', secondary=task_assignees, lazy='subquery',
         backref=db.backref('assigned_tasks', lazy=True))
     
     def to_dict(self):
-        # Calculate time worked: from in_progress (started_at) to for_review (reviewed_at)
-        time_worked = None
-        if self.reviewed_at and self.started_at:
-            time_worked = self.reviewed_at - self.started_at
+        # Calculate time worked: accumulated time in in_progress status
+        time_worked = self.accumulated_work_time
+        
+        # If currently in progress, add the current session time
+        if self.status == 'in_progress' and self.last_progress_start:
+            from datetime import datetime
+            current_session = int(datetime.utcnow().timestamp()) - self.last_progress_start
+            time_worked += current_session
         
         # Calculate total time: from creation to completion (done status)
         total_time = None
         if self.status == 'done' and self.completed_at and self.created_at:
             total_time = self.completed_at - self.created_at
+        
+        # Get user names for activity tracking
+        created_by_user = User.query.get(self.created_by) if self.created_by else None
+        started_by_user = User.query.get(self.started_by) if self.started_by else None
+        reviewed_by_user = User.query.get(self.reviewed_by) if self.reviewed_by else None
+        completed_by_user = User.query.get(self.completed_by) if self.completed_by else None
         
         return {
             'taskId': self.task_id,
@@ -179,11 +194,50 @@ class Task(db.Model):
             'jiraUrl': self.jira_url,
             'createdAt': self.created_at,
             'createdBy': self.created_by,
+            'createdByName': f"{created_by_user.first_name} {created_by_user.last_name}" if created_by_user else None,
             'updatedAt': self.updated_at,
             'startedAt': self.started_at,
+            'startedBy': self.started_by,
+            'startedByName': f"{started_by_user.first_name} {started_by_user.last_name}" if started_by_user else None,
             'reviewedAt': self.reviewed_at,
+            'reviewedBy': self.reviewed_by,
+            'reviewedByName': f"{reviewed_by_user.first_name} {reviewed_by_user.last_name}" if reviewed_by_user else None,
             'completedAt': self.completed_at,
+            'completedBy': self.completed_by,
+            'completedByName': f"{completed_by_user.first_name} {completed_by_user.last_name}" if completed_by_user else None,
             'timeWorked': time_worked,
             'totalTime': total_time,
             'assignees': [{'userId': u.user_id, 'email': u.email, 'firstName': u.first_name, 'lastName': u.last_name} for u in self.assignees]
+        }
+
+class TaskActivity(db.Model):
+    """
+    Model for tracking all task status changes and activities.
+    Provides complete audit trail including rejections and backward movements.
+    """
+    __tablename__ = 'task_activity'
+    
+    activity_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = db.Column(db.String(36), db.ForeignKey('task.task_id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('user.user_id'), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False)  # 'created', 'status_change', 'assigned', etc.
+    old_status = db.Column(db.String(50))  # Previous status (null for creation)
+    new_status = db.Column(db.String(50))  # New status
+    timestamp = db.Column(db.Integer, default=lambda: int(datetime.utcnow().timestamp()), nullable=False)
+    
+    # Relationships
+    task = db.relationship('Task', backref=db.backref('activities', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('task_activities', lazy='dynamic'))
+    
+    def to_dict(self):
+        user = User.query.get(self.user_id)
+        return {
+            'activityId': self.activity_id,
+            'taskId': self.task_id,
+            'userId': self.user_id,
+            'userName': f"{user.first_name} {user.last_name}" if user else None,
+            'actionType': self.action_type,
+            'oldStatus': self.old_status,
+            'newStatus': self.new_status,
+            'timestamp': self.timestamp
         }

@@ -1,6 +1,6 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
-from ..models import db, Task, Project, Epic, User
+from ..models import db, Task, Project, Epic, User, TaskActivity
 from ..utils import (
     get_current_user_id, get_current_user_role,
     success_response, error_response,
@@ -95,6 +95,17 @@ def create_task(project_id):
     db.session.add(task)
     db.session.commit()
     
+    # Log task creation activity
+    creation_activity = TaskActivity(
+        task_id=task.task_id,
+        user_id=user_id,
+        action_type='created',
+        old_status=None,
+        new_status='to_do'
+    )
+    db.session.add(creation_activity)
+    db.session.commit()
+    
     # TODO: Create Jira issue (will implement in jira_integration)
     
     return success_response(task.to_dict(), 201)
@@ -148,6 +159,7 @@ def update_task(task_id):
 def update_task_status(task_id):
     from datetime import datetime
     
+    user_id = get_current_user_id()
     role = get_current_user_role()
     
     task = Task.query.get(task_id)
@@ -167,28 +179,63 @@ def update_task_status(task_id):
     old_status = task.status
     task.status = status
     
-    # Track when work started (to_do -> in_progress)
-    if status == 'in_progress' and old_status == 'to_do' and not task.started_at:
-        task.started_at = int(datetime.utcnow().timestamp())
+    current_timestamp = int(datetime.utcnow().timestamp())
     
-    # Track when sent for review (in_progress -> for_review)
+    # Log activity to task_activity table
+    activity = TaskActivity(
+        task_id=task_id,
+        user_id=user_id,
+        action_type='status_change',
+        old_status=old_status,
+        new_status=status
+    )
+    db.session.add(activity)
+    
+    # Track when work started (to_do -> in_progress)
+    if status == 'in_progress':
+        if old_status == 'to_do' and not task.started_at:
+            task.started_at = current_timestamp
+            task.started_by = user_id
+        # Track the start of this work session
+        task.last_progress_start = current_timestamp
+    
+    # Track when sent for review or done (accumulate work time)
+    if old_status == 'in_progress' and status in ['for_review', 'done', 'to_do']:
+        # Calculate and accumulate the work time for this session
+        if task.last_progress_start:
+            session_time = current_timestamp - task.last_progress_start
+            task.accumulated_work_time = (task.accumulated_work_time or 0) + session_time
+            task.last_progress_start = None
+    
+    # Track when sent for review
     if status == 'for_review' and old_status == 'in_progress' and not task.reviewed_at:
-        task.reviewed_at = int(datetime.utcnow().timestamp())
+        task.reviewed_at = current_timestamp
+        task.reviewed_by = user_id
     
     # Track completion time when task is marked as done (only managers)
     if status == 'done' and old_status != 'done':
-        task.completed_at = int(datetime.utcnow().timestamp())
+        task.completed_at = current_timestamp
+        task.completed_by = user_id
     
-    # Clear timestamps if task is moved backwards in workflow
+    # Clear timestamps and users if task is moved backwards in workflow
     if status == 'to_do':
         task.started_at = None
+        task.started_by = None
         task.reviewed_at = None
+        task.reviewed_by = None
         task.completed_at = None
-    elif status == 'in_progress':
+        task.completed_by = None
+        # Keep accumulated work time, just reset the session
+        task.last_progress_start = None
+    elif status == 'in_progress' and old_status in ['for_review', 'done']:
+        # If moving back to in_progress from review/done, clear review/completion timestamps
         task.reviewed_at = None
+        task.reviewed_by = None
         task.completed_at = None
+        task.completed_by = None
     elif status == 'for_review':
         task.completed_at = None
+        task.completed_by = None
     
     db.session.commit()
     
@@ -199,6 +246,19 @@ def update_task_status(task_id):
         print(f"Task {task.name} moved to {status} - notification should be sent")
     
     return success_response(task.to_dict())
+
+"""Get activity history for a task"""
+@tasks_bp.route('/tasks/<task_id>/activities', methods=['GET'])
+@jwt_required()
+def get_task_activities(task_id):
+    task = Task.query.get(task_id)
+    if not task:
+        return error_response("Task not found", 404)
+    
+    # Get all activities for this task, ordered by timestamp
+    activities = TaskActivity.query.filter_by(task_id=task_id).order_by(TaskActivity.timestamp.asc()).all()
+    
+    return success_response([activity.to_dict() for activity in activities])
 
 """Delete a task (Admin/Manager only)"""
 @tasks_bp.route('/tasks/<task_id>', methods=['DELETE'])

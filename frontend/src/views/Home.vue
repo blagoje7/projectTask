@@ -381,55 +381,81 @@
 
     <!-- Task Detail Modal -->
     <div v-if="detailTask" class="modal-overlay" @click.self="detailTask = null">
-      <div class="modal-content" @click.stop>
-        <h2>{{ detailTask.name }}</h2>
-        <p>{{ detailTask.description || 'No description' }}</p>
-        
-        <div class="task-detail-meta">
-          <div><strong>Priority:</strong> {{ detailTask.priority }}</div>
-          <div><strong>Status:</strong> {{ formatStatus(detailTask.status) }}</div>
-          <div v-if="detailTask.deadline">
-            <strong>Deadline:</strong> {{ formatDate(detailTask.deadline) }}
+      <div class="modal-content modal-with-sidebar" @click.stop>
+        <!-- Left Side: Task Details -->
+        <div class="task-details-main">
+          <h2>{{ detailTask.name }}</h2>
+          <p>{{ detailTask.description || 'No description' }}</p>
+          
+          <div class="task-detail-meta">
+            <div><strong>Priority:</strong> {{ detailTask.priority }}</div>
+            <div><strong>Status:</strong> {{ formatStatus(detailTask.status) }}</div>
+            <div v-if="detailTask.deadline">
+              <strong>Deadline:</strong> {{ formatDate(detailTask.deadline) }}
+            </div>
+            <div v-if="detailTask.epicName">
+              <strong>Epic:</strong> {{ detailTask.epicName }}
+            </div>
           </div>
-          <div v-if="detailTask.epicName">
-            <strong>Epic:</strong> {{ detailTask.epicName }}
+
+          <div class="assignees-section">
+            <strong>Assignees:</strong>
+            <div v-if="!detailTask.assignees || detailTask.assignees.length === 0" class="no-assignees">
+              No assignees
+            </div>
+            <div v-else v-for="assignee in detailTask.assignees" :key="assignee.userId" class="assignee-item">
+              {{ assignee.firstName }} {{ assignee.lastName }} ({{ assignee.email }})
+            </div>
           </div>
+
+          <div class="status-update">
+            <label><strong>Update Status:</strong></label>
+            <select v-model="detailTask.status" @change="updateTaskStatusFromModal">
+              <option value="to_do">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="for_review">For Review</option>
+              <option v-if="userRole === 'admin' || userRole === 'manager'" value="done">Done</option>
+            </select>
+          </div>
+
+          <!-- Time Tracking Info -->
+          <div v-if="detailTask.timeWorked || detailTask.totalTime || detailTask.startedAt" class="time-tracking-section">
+            <hr class="divider" />
+            <div class="time-info">
+              <div v-if="detailTask.startedAt"><strong>Started:</strong> {{ formatDateTime(detailTask.startedAt) }}</div>
+              <div v-if="detailTask.reviewedAt"><strong>Reviewed:</strong> {{ formatDateTime(detailTask.reviewedAt) }}</div>
+              <div v-if="detailTask.completedAt"><strong>Completed:</strong> {{ formatDateTime(detailTask.completedAt) }}</div>
+              <div v-if="detailTask.timeWorked" class="time-worked">
+                <strong>Active Work Time:</strong> 
+                <span class="highlight">{{ formatDuration(detailTask.timeWorked) }}</span>
+                <span v-if="detailTask.status === 'in_progress'" class="working-now"> (currently working)</span>
+              </div>
+              <div v-if="detailTask.totalTime" class="time-worked"><strong>Total Time:</strong> <span class="highlight">{{ formatDuration(detailTask.totalTime) }}</span></div>
+            </div>
+          </div>
+
+          <button @click="detailTask = null" class="btn-close">Close</button>
         </div>
 
-        <div class="assignees-section">
-          <strong>Assignees:</strong>
-          <div v-if="!detailTask.assignees || detailTask.assignees.length === 0" class="no-assignees">
-            No assignees
-          </div>
-          <div v-else v-for="assignee in detailTask.assignees" :key="assignee.userId" class="assignee-item">
-            {{ assignee.firstName }} {{ assignee.lastName }} ({{ assignee.email }})
-          </div>
-        </div>
-
-        <div class="status-update">
-          <label><strong>Update Status:</strong></label>
-          <select v-model="detailTask.status" @change="updateTaskStatusFromModal">
-            <option value="to_do">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="for_review">For Review</option>
-            <option v-if="userRole === 'admin' || userRole === 'manager'" value="done">Done</option>
-          </select>
-        </div>
-
-        <!-- Time Tracking Info (only shown if task is done) -->
-        <div v-if="detailTask.status === 'done' && detailTask.totalTime" class="time-tracking-section">
-          <hr class="divider" />
-          <div class="time-info">
-            <div><strong>Created:</strong> {{ formatDateTime(detailTask.createdAt) }}</div>
-            <div v-if="detailTask.startedAt"><strong>Started:</strong> {{ formatDateTime(detailTask.startedAt) }}</div>
-            <div v-if="detailTask.reviewedAt"><strong>Reviewed:</strong> {{ formatDateTime(detailTask.reviewedAt) }}</div>
-            <div><strong>Completed:</strong> {{ formatDateTime(detailTask.completedAt) }}</div>
-            <div v-if="detailTask.timeWorked" class="time-worked"><strong>Active Work Time:</strong> <span class="highlight">{{ formatDuration(detailTask.timeWorked) }}</span></div>
-            <div class="time-worked"><strong>Total Time:</strong> <span class="highlight">{{ formatDuration(detailTask.totalTime) }}</span></div>
+        <!-- Right Side: Activity Timeline -->
+        <div class="activity-sidebar">
+          <h3>Activity Timeline</h3>
+          <div class="activity-timeline-scroll">
+            <div v-if="taskActivities.length === 0" class="no-activities">
+              Loading activity history...
+            </div>
+            <div v-else v-for="activity in taskActivities" :key="activity.activityId" class="activity-item">
+              <div :class="['activity-icon', getActivityClass(activity)]">
+                {{ getActivityIcon(activity) }}
+              </div>
+              <div class="activity-content">
+                <div class="activity-title">{{ getActivityTitle(activity) }}</div>
+                <div class="activity-user" v-if="activity.userName">by {{ activity.userName }}</div>
+                <div class="activity-time">{{ formatDateTime(activity.timestamp) }}</div>
+              </div>
+            </div>
           </div>
         </div>
-
-        <button @click="detailTask = null" class="btn-close">Close</button>
       </div>
     </div>
 
@@ -605,6 +631,7 @@ const taskFilter = ref('all'); // 'all' or 'my'
 
 // Modals
 const detailTask = ref(null);
+const taskActivities = ref([]);
 const editingTask = ref(null);
 const showEditModal = ref(false);
 const showAssigneesModal = ref(false);
@@ -910,8 +937,85 @@ const handleMenuAction = (action) => {
 
 const viewTaskDetails = (task) => {
   detailTask.value = task;
+  fetchTaskActivities(task.taskId);
   activeMenu.value = null;
   showSubmenu.value = null;
+};
+
+// Fetch activity history for a task
+const fetchTaskActivities = async (taskId) => {
+  try {
+    const response = await apiGet(`/tasks/${taskId}/activities`);
+    taskActivities.value = response.data;
+  } catch (error) {
+    console.error('Failed to fetch task activities:', error);
+    taskActivities.value = [];
+  }
+};
+
+// Get icon and color for activity based on status change
+const getActivityIcon = (activity) => {
+  if (activity.actionType === 'created') {
+    return '📋';
+  }
+  
+  const oldStatus = activity.oldStatus;
+  const newStatus = activity.newStatus;
+  
+  // Moving forward
+  if (newStatus === 'in_progress') return '▶️';
+  if (newStatus === 'for_review') return '👁️';
+  if (newStatus === 'done') return '✅';
+  
+  // Moving backward (rejections)
+  if (oldStatus === 'for_review' && newStatus === 'in_progress') return '↩️';
+  if (oldStatus === 'for_review' && newStatus === 'to_do') return '🔄';
+  if (oldStatus === 'in_progress' && newStatus === 'to_do') return '🔄';
+  if (oldStatus === 'done') return '↩️';
+  
+  return '🔄';
+};
+
+// Get title for activity
+const getActivityTitle = (activity) => {
+  if (activity.actionType === 'created') {
+    return 'Task Created';
+  }
+  
+  const oldStatus = activity.oldStatus;
+  const newStatus = activity.newStatus;
+  
+  // Forward progress
+  if (newStatus === 'in_progress' && oldStatus === 'to_do') return 'Work Started';
+  if (newStatus === 'for_review') return 'Sent for Review';
+  if (newStatus === 'done') return 'Task Completed';
+  
+  // Backward movements (rejections)
+  if (oldStatus === 'for_review' && newStatus === 'in_progress') return 'Rejected - Returned to In Progress';
+  if (oldStatus === 'for_review' && newStatus === 'to_do') return 'Rejected - Returned to To Do';
+  if (oldStatus === 'in_progress' && newStatus === 'to_do') return 'Moved Back to To Do';
+  if (oldStatus === 'done' && newStatus === 'in_progress') return 'Reopened - Returned to In Progress';
+  if (oldStatus === 'done' && newStatus === 'for_review') return 'Reopened - Returned to Review';
+  if (oldStatus === 'done' && newStatus === 'to_do') return 'Reopened - Returned to To Do';
+  
+  return `Status Changed: ${formatStatus(oldStatus)} → ${formatStatus(newStatus)}`;
+};
+
+// Get CSS class for activity icon
+const getActivityClass = (activity) => {
+  if (activity.actionType === 'created') return 'created';
+  
+  const newStatus = activity.newStatus;
+  const oldStatus = activity.oldStatus;
+  
+  if (newStatus === 'in_progress' && oldStatus === 'to_do') return 'in-progress';
+  if (newStatus === 'for_review') return 'review';
+  if (newStatus === 'done') return 'completed';
+  
+  // Rejections/backward movements
+  if (oldStatus && newStatus && oldStatus > newStatus) return 'rejected';
+  
+  return 'status-change';
 };
 
 // Assignee Management
@@ -2333,6 +2437,66 @@ onMounted(() => {
   width: 90%;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border-color);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal-with-sidebar {
+  display: flex;
+  gap: 0;
+  max-width: 1000px;
+  padding: 0;
+  overflow: hidden;
+  max-height: 85vh;
+}
+
+.task-details-main {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  max-height: 85vh;
+}
+
+.activity-sidebar {
+  width: 350px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+
+.activity-sidebar h3 {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.activity-timeline-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+}
+
+.activity-timeline-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-timeline-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activity-timeline-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.activity-timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 .modal-content h2 {
@@ -2384,6 +2548,19 @@ onMounted(() => {
   font-size: 18px;
 }
 
+.time-worked .working-now {
+  color: var(--primary-color);
+  font-size: 13px;
+  font-style: italic;
+  margin-left: 8px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .task-detail-meta, .assignees-section, .status-update {
   margin: 20px 0;
   padding: 15px;
@@ -2418,6 +2595,142 @@ onMounted(() => {
   border-radius: 6px;
   background: white;
   font-size: 14px;
+}
+
+.activity-section {
+  margin: 20px 0;
+  padding: 15px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.activity-section > strong {
+  display: block;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.activity-timeline {
+  position: relative;
+  padding-left: 40px;
+}
+
+.activity-timeline::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: #e0e0e0;
+}
+
+.activity-timeline-scroll .activity-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  position: relative;
+  padding-left: 40px;
+}
+
+.activity-timeline-scroll .activity-item:last-child {
+  margin-bottom: 0;
+}
+
+.activity-timeline-scroll::before {
+  content: '';
+  position: absolute;
+  left: 35px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e0e0e0;
+}
+
+.activity-timeline-scroll {
+  position: relative;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.activity-item:last-child {
+  margin-bottom: 0;
+}
+
+.activity-icon {
+  position: absolute;
+  left: -40px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  font-size: 14px;
+  z-index: 1;
+}
+
+.activity-icon.created {
+  border-color: #95a5a6;
+}
+
+.activity-icon.in-progress {
+  border-color: #2196f3;
+}
+
+.activity-icon.review {
+  border-color: #ff9800;
+}
+
+.activity-icon.completed {
+  border-color: #4caf50;
+}
+
+.activity-icon.rejected {
+  border-color: #e74c3c;
+  background: #fff5f5;
+}
+
+.activity-icon.status-change {
+  border-color: #9b59b6;
+}
+
+.no-activities {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.activity-user {
+  color: var(--primary-color);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.activity-time {
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 .btn-close {
