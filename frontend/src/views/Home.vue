@@ -91,6 +91,11 @@
     <main class="main-content">
       <div class="content-header">
         <h1>Active Issues</h1>
+        <div class="header-actions" v-if="selectedProject">
+             <button @click="$router.push(`/projects/${selectedProject.projectId}/whiteboard`)" class="btn-whiteboard-home">
+              🎨 Whiteboard
+            </button>
+        </div>
       </div>
 
       <!-- Tasks View -->
@@ -3077,7 +3082,28 @@ onMounted(() => {
   cursor: pointer;
 }
 
+.btn-whiteboard-home {
+  padding: 8px 16px;
+  background-color: #6610f2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 10px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 
+.btn-whiteboard-home:hover {
+  background-color: #520dc2;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+}
 </style>
 
 

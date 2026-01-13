@@ -1,12 +1,16 @@
+"""
+Authentication Routes.
+Handles user login, registration, and password management.
+"""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from ..models import db, User
 
 auth_bp = Blueprint('auth', __name__)
 
-"""Authenticate user and return JWT token"""
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    """Authenticate user and return JWT token"""
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')

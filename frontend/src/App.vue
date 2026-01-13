@@ -11,13 +11,15 @@
             <router-link to="/teams">Manage Teams</router-link> |
           </span>
           <span v-if="role === 'manager'">
-            <router-link to="/teams">Manage Teams</router-link> |
+            <router-link to="/teams">Manage Teams</router-link>
           </span>
-          <button @click="logout">Logout</button>
         </div>
-        <button @click="toggleTheme" class="theme-toggle" :title="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
-          {{ isDarkMode ? '☀️' : '🌙' }}
-        </button>
+        <div class="right-nav">
+          <button @click="toggleTheme" class="theme-toggle" :title="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+            {{ isDarkMode ? '☀️' : '🌙' }}
+          </button>
+          <button @click="logout" class="logout-btn">Logout</button>
+        </div>
       </div>
     </nav>
     <router-view />
@@ -207,5 +209,26 @@ nav {
 
 .theme-toggle:hover {
   background-color: var(--bg-tertiary);
+}
+
+.right-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logout-btn {
+  background: transparent;
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.logout-btn:hover {
+  background: var(--danger-color);
+  color: white;
 }
 </style>

@@ -1,13 +1,17 @@
+"""
+Team Routes.
+Handles team management including adding members and listing teams.
+"""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from ..models import db, Team, User
 
 teams_bp = Blueprint('teams', __name__)
 
-"""Get all teams (Admin gets all, Manager gets only their teams)"""
 @teams_bp.route('/teams', methods=['GET'])
 @jwt_required()
 def get_teams():
+    """Get all teams (Admin gets all, Manager gets only their teams)"""
     claims = get_jwt()
     role_claim = claims.get('role')
     user_id = claims.get('userId') or claims.get('sub')  # Backwards compatibility

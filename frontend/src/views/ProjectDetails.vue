@@ -6,6 +6,9 @@
         <p class="description">{{ project.description }}</p>
       </div>
       <div class="header-actions">
+        <button @click="$router.push(`/projects/${projectId}/whiteboard`)" class="btn-whiteboard">
+          🎨 Whiteboard
+        </button>
         <a v-if="project.jiraUrl" :href="project.jiraUrl" target="_blank" class="jira-link">
           View in Jira ({{ project.jiraKey }})
         </a>
@@ -29,12 +32,6 @@
     </div>
 
     <div class="tabs">
-      <button 
-        @click="activeTab = 'epics'" 
-        :class="{ active: activeTab === 'epics' }"
-      >
-        Epics
-      </button>
       <button 
         @click="activeTab = 'tasks'" 
         :class="{ active: activeTab === 'tasks' }"
@@ -72,49 +69,6 @@
       </div>
     </div>
 
-    <!-- Epics Tab -->
-    <div v-if="activeTab === 'epics'" class="tab-content">
-      <div class="section-header">
-        <h2>Epics</h2>
-        <button 
-          v-if="isManager"
-          @click="showCreateEpic = true"
-          class="btn-create"
-        >
-          + New Epic
-        </button>
-      </div>
-
-      <div v-if="epics.length === 0" class="empty-state">
-        <p>No epics yet</p>
-      </div>
-
-      <div class="epics-list">
-        <div v-for="epic in epics" :key="epic.epicId" class="epic-item">
-          <h3>{{ epic.name }}</h3>
-          <p>{{ epic.description || 'No description' }}</p>
-          <div class="epic-actions" v-if="isManager">
-            <button @click="deleteEpic(epic.epicId)" class="btn-delete">Delete</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Create Epic Modal -->
-    <div v-if="showCreateEpic" class="modal-overlay" @click="showCreateEpic = false">
-      <div class="modal-content" @click.stop>
-        <h2>Create Epic</h2>
-        <form @submit.prevent="createEpic">
-          <input v-model="newEpic.name" placeholder="Epic name" required />
-          <textarea v-model="newEpic.description" placeholder="Description" rows="3"></textarea>
-          <div class="modal-actions">
-            <button type="button" @click="showCreateEpic = false" class="btn-cancel">Cancel</button>
-            <button type="submit" class="btn-submit">Create</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
     <!-- Task Details Modal -->
     <div v-if="selectedTask" class="modal-overlay" @click="selectedTask = null">
       <div class="modal-content" @click.stop>
@@ -126,9 +80,6 @@
           <div><strong>Status:</strong> {{ formatStatus(selectedTask.status) }}</div>
           <div v-if="selectedTask.deadline">
             <strong>Deadline:</strong> {{ formatDate(selectedTask.deadline) }}
-          </div>
-          <div v-if="selectedTask.epicName">
-            <strong>Epic:</strong> {{ selectedTask.epicName }}
           </div>
         </div>
 
@@ -204,11 +155,8 @@ const projectId = route.params.id;
 
 const project = ref({ teams: [] });
 const tasks = ref([]);
-const epics = ref([]);
-const activeTab = ref('epics');
-const showCreateEpic = ref(false);
+const activeTab = ref('tasks');
 const selectedTask = ref(null);
-const newEpic = ref({ name: '', description: '' });
 const showTeamModal = ref(false);
 const allTeams = ref([]);
 const selectedTeamIds = ref([]);
@@ -221,34 +169,10 @@ const fetchProject = async () => {
     const response = await apiGet(`/projects/${projectId}`);
     project.value = response.data;
     tasks.value = response.data.tasks || [];
-    epics.value = response.data.epics || [];
     selectedTeamIds.value = (project.value.teams || []).map(t => t.teamId);
   } catch (error) {
     console.error(error);
     alert('Error loading project');
-  }
-};
-
-const createEpic = async () => {
-  try {
-    await apiPost(`/projects/${projectId}/epics`, newEpic.value);
-    showCreateEpic.value = false;
-    newEpic.value = { name: '', description: '' };
-    fetchProject();
-  } catch (error) {
-    console.error(error);
-    alert('Error creating epic');
-  }
-};
-
-const deleteEpic = async (epicId) => {
-  if (!confirm('Delete this epic?')) return;
-  try {
-    await apiDelete(`/epics/${epicId}`);
-    fetchProject();
-  } catch (error) {
-    console.error(error);
-    alert('Error deleting epic');
   }
 };
 
@@ -710,5 +634,20 @@ onMounted(() => {
   margin-right: 10px;
   cursor: pointer;
   width: auto;
+}
+
+.btn-whiteboard {
+  padding: 8px 16px;
+  background-color: #6610f2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  font-weight: 500;
+}
+
+.btn-whiteboard:hover {
+  background-color: #520dc2;
 }
 </style>

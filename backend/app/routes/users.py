@@ -1,13 +1,17 @@
+"""
+User Routes.
+Handles user management, listing, and updates.
+"""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..models import db, User, Role
 
 users_bp = Blueprint('users', __name__)
 
-"""Get all users (Admin/Manager)"""
 @users_bp.route('/users', methods=['GET'])
 @jwt_required()
 def get_users():
+    """Get all users (Admin/Manager)"""
     claims = get_jwt()
     role_claim = claims.get('role')
     

@@ -1,6 +1,10 @@
+"""
+Task Routes.
+Handles creation, updating, and retrieval of tasks, including activity tracking and assignments.
+"""
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
-from ..models import db, Task, Project, Epic, User, TaskActivity
+from ..models import db, Task, Project, User, TaskActivity
 from ..utils import (
     get_current_user_id, get_current_user_role,
     success_response, error_response,
@@ -10,10 +14,10 @@ from ..constants import ADMIN_MANAGER, ALL_PRIORITIES, ALL_STATUSES
 
 tasks_bp = Blueprint('tasks', __name__)
 
-"""Get all tasks for a project"""
 @tasks_bp.route('/projects/<project_id>/tasks', methods=['GET'])
 @jwt_required()
 def get_tasks(project_id):
+    """Get all tasks for a project"""
     project = Project.query.get(project_id)
     if not project:
         return error_response("Project not found", 404)
@@ -59,7 +63,6 @@ def create_task(project_id):
     data = request.get_json()
     name = data.get('name')
     description = data.get('description', '')
-    epic_id = data.get('epicId')
     priority = data.get('priority', 'medium')
     deadline = data.get('deadline')
     assignee_ids = data.get('assigneeIds', [])
@@ -70,17 +73,10 @@ def create_task(project_id):
     if priority not in ALL_PRIORITIES:
         return error_response(f"Priority must be one of: {', '.join(ALL_PRIORITIES)}")
     
-    # Validate epic if provided
-    if epic_id:
-        epic = Epic.query.get(epic_id)
-        if not epic or epic.project_id != project_id:
-            return error_response("Invalid epic for this project")
-    
     task = Task(
         name=name,
         description=description,
         project_id=project_id,
-        epic_id=epic_id,
         priority=priority,
         deadline=deadline,
         created_by=user_id
@@ -126,7 +122,7 @@ def update_task(task_id):
     if ('priority' in data or 'deadline' in data) and role not in ['admin', 'manager']:
         return error_response("Only managers and admins can change task priority or deadline", 403)
     
-    # Only admin/manager can update name, description, epicId
+    # Only admin/manager can update name, description
     error = check_role(role, ADMIN_MANAGER)
     if error:
         return error
@@ -135,8 +131,6 @@ def update_task(task_id):
         task.name = data['name']
     if 'description' in data:
         task.description = data['description']
-    if 'epicId' in data:
-        task.epic_id = data['epicId']
     if 'priority' in data:
         if data['priority'] in ALL_PRIORITIES:
             task.priority = data['priority']

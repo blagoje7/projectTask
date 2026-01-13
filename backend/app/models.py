@@ -1,3 +1,7 @@
+"""
+Database Models.
+Defines the SQLAlchemy models for the application: User, Role, Project, Team, Task, Epic, Whiteboard.
+"""
 import uuid
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
@@ -90,7 +94,6 @@ class Project(db.Model):
     # Relationships
     teams = db.relationship('Team', secondary=project_teams, lazy='subquery',
         backref=db.backref('projects', lazy=True))
-    epics = db.relationship('Epic', backref='project', lazy=True, cascade='all, delete-orphan')
     tasks = db.relationship('Task', backref='project', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self):
@@ -105,33 +108,11 @@ class Project(db.Model):
             'teams': [{'teamId': t.team_id, 'name': t.name} for t in self.teams]
         }
 
-class Epic(db.Model):
-    epic_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    project_id = db.Column(db.String(36), db.ForeignKey('project.project_id'), nullable=False)
-    jira_key = db.Column(db.String(20), nullable=True)
-    created_at = db.Column(db.Integer, default=lambda: int(datetime.utcnow().timestamp()))
-    
-    # Relationships
-    tasks = db.relationship('Task', backref='epic', lazy=True)
-    
-    def to_dict(self):
-        return {
-            'epicId': self.epic_id,
-            'name': self.name,
-            'description': self.description,
-            'projectId': self.project_id,
-            'jiraKey': self.jira_key,
-            'createdAt': self.created_at
-        }
-
 class Task(db.Model):
     task_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     project_id = db.Column(db.String(36), db.ForeignKey('project.project_id'), nullable=False)
-    epic_id = db.Column(db.String(36), db.ForeignKey('epic.epic_id'), nullable=True)
     
     # Task properties
     priority = db.Column(db.String(20), default='medium')  # low, medium, high
@@ -185,8 +166,6 @@ class Task(db.Model):
             'name': self.name,
             'description': self.description,
             'projectId': self.project_id,
-            'epicId': self.epic_id,
-            'epicName': self.epic.name if self.epic else None,
             'priority': self.priority,
             'status': self.status,
             'deadline': self.deadline,
@@ -241,3 +220,4 @@ class TaskActivity(db.Model):
             'newStatus': self.new_status,
             'timestamp': self.timestamp
         }
+

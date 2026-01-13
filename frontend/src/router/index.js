@@ -1,3 +1,7 @@
+/**
+ * Vue Router configuration.
+ * Defines application routes, navigation guards, and role-based access control.
+ */
 import { createRouter, createWebHistory } from 'vue-router';
 import Home from '../views/Home.vue';
 import Login from '../views/Login.vue';
@@ -11,6 +15,7 @@ import CreateProject from '../views/CreateProject.vue';
 import ProjectDetails from '../views/ProjectDetails.vue';
 import CreateTask from '../views/CreateTask.vue';
 import MyTasks from '../views/MyTasks.vue';
+import Whiteboard from '../views/Whiteboard.vue';
 
 const routes = [
   { path: '/', component: Home, meta: { requiresAuth: true } },
@@ -62,7 +67,12 @@ const routes = [
     meta: { requiresAuth: true, role: 'manager' }
   },
   { 
-    path: '/my-tasks', 
+    path: '/projects/:id/whiteboard', 
+    component: Whiteboard,
+    meta: { requiresAuth: true }
+  },
+  { 
+    path: '/my-tasks',  
     component: MyTasks,
     meta: { requiresAuth: true }
   },

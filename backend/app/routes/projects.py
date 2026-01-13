@@ -1,13 +1,17 @@
+"""
+Project Routes.
+Handles CRUD operations for creating, retrieving, and managing projects.
+"""
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from ..models import db, Project, Team, User
 
 projects_bp = Blueprint('projects', __name__)
 
-"""Get all projects (Managers see their team's projects, Admins see all)"""
 @projects_bp.route('/projects', methods=['GET'])
 @jwt_required()
 def get_projects():
+    """Get all projects (Managers see their team's projects, Admins see all)"""
     claims = get_jwt()
     role_claim = claims.get('role')
     user_id = claims.get('userId') or claims.get('sub')  # Backwards compatibility
@@ -23,11 +27,19 @@ def get_projects():
         user = User.query.get(user_id)
         if not user:
             return jsonify({"msg": "User not found"}), 404
-        
-        # Get all projects that have teams the manager belongs to
+            
         projects = []
+        # Add projects from teams the manager is in
         for team in user.teams:
             projects.extend(team.projects)
+            
+        # Also could add projects created by the manager if not strictly team-based, 
+        # but requirements say "only see their projects". 
+        # Usually implies projects they are working on (via teams). 
+        # If they created a project but didn't assign their team, they might want to see it too.
+        created_projects = Project.query.filter_by(created_by=user_id).all()
+        projects.extend(created_projects)
+
         # Remove duplicates
         projects = list(set(projects))
     else:
@@ -51,7 +63,6 @@ def get_project_details(project_id):
         return jsonify({"msg": "Project not found"}), 404
     
     project_data = project.to_dict()
-    project_data['epics'] = [e.to_dict() for e in project.epics]
     project_data['tasks'] = [t.to_dict() for t in project.tasks]
     
     return jsonify(project_data), 200

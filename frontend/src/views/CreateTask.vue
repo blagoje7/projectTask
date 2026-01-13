@@ -24,16 +24,6 @@
         </div>
 
         <div class="form-group">
-          <label>Epic (Optional)</label>
-          <select v-model="task.epicId">
-            <option value="">No Epic</option>
-            <option v-for="epic in epics" :key="epic.epicId" :value="epic.epicId">
-              {{ epic.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="form-group">
           <label>Priority *</label>
           <select v-model="task.priority" required>
             <option value="">Select priority</option>
@@ -86,13 +76,11 @@ const router = useRouter();
 const route = useRoute();
 const projectId = route.params.id;
 
-const epics = ref([]);
 const teamMembers = ref([]);
 
 const task = ref({
   name: '',
   description: '',
-  epicId: '',
   priority: '',
   deadline: '',
   assigneeIds: []
@@ -100,10 +88,9 @@ const task = ref({
 
 const fetchProjectData = async () => {
   try {
-    // Fetch project to get epics
+    // Fetch project
     const projectResponse = await apiGet(`/projects/${projectId}`);
-    epics.value = projectResponse.data.epics || [];
-
+    
     // Fetch team members from all teams assigned to the project
     const teams = projectResponse.data.teams || [];
     const memberSet = new Set();
@@ -141,10 +128,6 @@ const submitTask = async () => {
     priority: task.value.priority,
     assigneeIds: task.value.assigneeIds || []
   };
-
-  if (task.value.epicId) {
-    payload.epicId = task.value.epicId;
-  }
 
   if (task.value.deadline) {
     const dateObj = new Date(task.value.deadline);
